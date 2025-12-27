@@ -1,6 +1,6 @@
 using RabbitMQ.Client;
 
-namespace AsyncronousComunication.Connection;
+namespace MessagingOverQueue.Connection;
 
 /// <summary>
 /// Interface for managing RabbitMQ connections and channels.

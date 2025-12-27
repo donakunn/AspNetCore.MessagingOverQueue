@@ -1,13 +1,13 @@
-using AsyncronousComunication.Abstractions.Consuming;
-using AsyncronousComunication.Configuration.Options;
-using AsyncronousComunication.Connection;
-using AsyncronousComunication.Consuming;
-using AsyncronousComunication.Consuming.Middleware;
+using MessagingOverQueue.Abstractions.Consuming;
+using MessagingOverQueue.Configuration.Options;
+using MessagingOverQueue.Connection;
+using MessagingOverQueue.Consuming;
+using MessagingOverQueue.Consuming.Middleware;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace AsyncronousComunication.Hosting;
+namespace MessagingOverQueue.Hosting;
 
 /// <summary>
 /// Hosted service that manages message consumers.

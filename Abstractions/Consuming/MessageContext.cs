@@ -1,4 +1,4 @@
-namespace AsyncronousComunication.Abstractions.Consuming;
+namespace MessagingOverQueue.Abstractions.Consuming;
 
 /// <summary>
 /// Default implementation of IMessageContext.

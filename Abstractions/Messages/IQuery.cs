@@ -1,4 +1,4 @@
-namespace AsyncronousComunication.Abstractions.Messages;
+namespace MessagingOverQueue.Abstractions.Messages;
 
 /// <summary>
 /// Marker interface for query messages that expect a response.

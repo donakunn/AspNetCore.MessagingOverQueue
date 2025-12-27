@@ -1,9 +1,9 @@
-using AsyncronousComunication.Configuration.Options;
+using MessagingOverQueue.Configuration.Options;
 using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Retry;
 
-namespace AsyncronousComunication.Resilience;
+namespace MessagingOverQueue.Resilience;
 
 /// <summary>
 /// Interface for retry policies.

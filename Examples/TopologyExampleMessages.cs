@@ -1,7 +1,7 @@
-using AsyncronousComunication.Abstractions.Messages;
-using AsyncronousComunication.Topology.Attributes;
+using MessagingOverQueue.Abstractions.Messages;
+using MessagingOverQueue.Topology.Attributes;
 
-namespace AsyncronousComunication.Examples.Messages;
+namespace MessagingOverQueue.Examples.Messages;
 
 // ==========================================
 // Basic Event with Default Conventions
@@ -131,7 +131,6 @@ public class AuditLogEvent : Event
     public string EntityId { get; init; } = string.Empty;
     public string Action { get; init; } = string.Empty;
     public string UserId { get; init; } = string.Empty;
-    public DateTime Timestamp { get; init; }
     public Dictionary<string, object> Changes { get; init; } = new();
 }
 

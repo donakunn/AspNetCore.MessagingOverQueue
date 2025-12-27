@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 
-namespace AsyncronousComunication.Consuming.Middleware;
+namespace MessagingOverQueue.Consuming.Middleware;
 
 /// <summary>
 /// Middleware that logs consume operations.

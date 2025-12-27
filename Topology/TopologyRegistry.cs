@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
-using AsyncronousComunication.Topology.Abstractions;
+using MessagingOverQueue.Topology.Abstractions;
 
-namespace AsyncronousComunication.Topology;
+namespace MessagingOverQueue.Topology;
 
 /// <summary>
 /// Thread-safe registry for topology definitions.

@@ -1,6 +1,6 @@
-using AsyncronousComunication.Abstractions.Messages;
+using MessagingOverQueue.Abstractions.Messages;
 
-namespace AsyncronousComunication.Publishing.Middleware;
+namespace MessagingOverQueue.Publishing.Middleware;
 
 /// <summary>
 /// Middleware for the publish pipeline.

@@ -1,6 +1,6 @@
-using AsyncronousComunication.Abstractions.Messages;
+using MessagingOverQueue.Abstractions.Messages;
 
-namespace AsyncronousComunication.Abstractions.Publishing;
+namespace MessagingOverQueue.Abstractions.Publishing;
 
 /// <summary>
 /// Interface for publishing messages to RabbitMQ.

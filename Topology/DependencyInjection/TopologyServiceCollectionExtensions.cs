@@ -1,12 +1,12 @@
 using System.Reflection;
-using AsyncronousComunication.DependencyInjection;
-using AsyncronousComunication.Topology.Abstractions;
-using AsyncronousComunication.Topology.Builders;
-using AsyncronousComunication.Topology.Conventions;
+using MessagingOverQueue.DependencyInjection;
+using MessagingOverQueue.Topology.Abstractions;
+using MessagingOverQueue.Topology.Builders;
+using MessagingOverQueue.Topology.Conventions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace AsyncronousComunication.Topology.DependencyInjection;
+namespace MessagingOverQueue.Topology.DependencyInjection;
 
 /// <summary>
 /// Extension methods for configuring topology services.

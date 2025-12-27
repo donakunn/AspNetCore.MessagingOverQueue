@@ -1,7 +1,7 @@
-using AsyncronousComunication.Persistence.Entities;
+using MessagingOverQueue.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace AsyncronousComunication.Persistence.Repositories;
+namespace MessagingOverQueue.Persistence.Repositories;
 
 /// <summary>
 /// EF Core implementation of the outbox repository.

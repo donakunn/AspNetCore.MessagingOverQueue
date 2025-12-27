@@ -1,7 +1,7 @@
-using AsyncronousComunication.Persistence.Repositories;
+using MessagingOverQueue.Persistence.Repositories;
 using Microsoft.Extensions.Logging;
 
-namespace AsyncronousComunication.Consuming.Middleware;
+namespace MessagingOverQueue.Consuming.Middleware;
 
 /// <summary>
 /// Middleware that ensures idempotent message processing.

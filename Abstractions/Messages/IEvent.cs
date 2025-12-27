@@ -1,4 +1,4 @@
-namespace AsyncronousComunication.Abstractions.Messages;
+namespace MessagingOverQueue.Abstractions.Messages;
 
 /// <summary>
 /// Marker interface for events. Events represent something that has happened

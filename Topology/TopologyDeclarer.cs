@@ -1,9 +1,9 @@
-using AsyncronousComunication.Connection;
-using AsyncronousComunication.Topology.Abstractions;
+using MessagingOverQueue.Connection;
+using MessagingOverQueue.Topology.Abstractions;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 
-namespace AsyncronousComunication.Topology;
+namespace MessagingOverQueue.Topology;
 
 /// <summary>
 /// Declares topology definitions on the RabbitMQ broker.

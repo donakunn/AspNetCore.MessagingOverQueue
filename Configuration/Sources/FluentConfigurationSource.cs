@@ -1,7 +1,7 @@
-using AsyncronousComunication.Configuration.Builders;
-using AsyncronousComunication.Configuration.Options;
+using MessagingOverQueue.Configuration.Builders;
+using MessagingOverQueue.Configuration.Options;
 
-namespace AsyncronousComunication.Configuration.Sources;
+namespace MessagingOverQueue.Configuration.Sources;
 
 /// <summary>
 /// Configuration source that uses the fluent builder pattern.

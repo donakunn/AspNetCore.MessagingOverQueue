@@ -1,8 +1,8 @@
-using AsyncronousComunication.Abstractions.Messages;
-using AsyncronousComunication.Abstractions.Publishing;
+using MessagingOverQueue.Abstractions.Messages;
+using MessagingOverQueue.Abstractions.Publishing;
 using Microsoft.Extensions.Logging;
 
-namespace AsyncronousComunication.Resilience;
+namespace MessagingOverQueue.Resilience;
 
 /// <summary>
 /// Interface for handling dead letter messages.

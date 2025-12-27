@@ -1,9 +1,9 @@
-using AsyncronousComunication.Configuration.Options;
-using AsyncronousComunication.Resilience;
+using MessagingOverQueue.Configuration.Options;
+using MessagingOverQueue.Resilience;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace AsyncronousComunication.Consuming.Middleware;
+namespace MessagingOverQueue.Consuming.Middleware;
 
 /// <summary>
 /// Middleware that applies retry logic to message processing.

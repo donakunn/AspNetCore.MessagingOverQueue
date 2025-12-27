@@ -1,7 +1,7 @@
-using AsyncronousComunication.Abstractions.Messages;
-using AsyncronousComunication.Topology.Abstractions;
+using MessagingOverQueue.Abstractions.Messages;
+using MessagingOverQueue.Topology.Abstractions;
 
-namespace AsyncronousComunication.Topology;
+namespace MessagingOverQueue.Topology;
 
 /// <summary>
 /// Resolves routing information for messages using the topology provider.

@@ -1,4 +1,4 @@
-namespace AsyncronousComunication.Topology.Abstractions;
+namespace MessagingOverQueue.Topology.Abstractions;
 
 /// <summary>
 /// Declares topology on RabbitMQ broker.

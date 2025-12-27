@@ -1,6 +1,6 @@
-using AsyncronousComunication.Abstractions.Messages;
+using MessagingOverQueue.Abstractions.Messages;
 
-namespace AsyncronousComunication.Abstractions.Publishing;
+namespace MessagingOverQueue.Abstractions.Publishing;
 
 /// <summary>
 /// Specialized interface for publishing events.

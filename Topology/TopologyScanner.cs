@@ -1,10 +1,10 @@
 using System.Reflection;
-using AsyncronousComunication.Abstractions.Consuming;
-using AsyncronousComunication.Abstractions.Messages;
-using AsyncronousComunication.Topology.Abstractions;
-using AsyncronousComunication.Topology.Attributes;
+using MessagingOverQueue.Abstractions.Consuming;
+using MessagingOverQueue.Abstractions.Messages;
+using MessagingOverQueue.Topology.Abstractions;
+using MessagingOverQueue.Topology.Attributes;
 
-namespace AsyncronousComunication.Topology;
+namespace MessagingOverQueue.Topology;
 
 /// <summary>
 /// Scans assemblies for message types and handlers to auto-discover topology.
@@ -58,7 +58,9 @@ public sealed class TopologyScanner : ITopologyScanner
                 foreach (var type in loadedTypes)
                 {
                     var attributes = type!.GetCustomAttributes().ToList();
-                    
+
+                    if (type is null) continue;
+
                     messageTypes.Add(new MessageTypeInfo
                     {
                         MessageType = type,

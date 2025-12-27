@@ -1,4 +1,4 @@
-namespace AsyncronousComunication.Configuration.Options;
+namespace MessagingOverQueue.Configuration.Options;
 
 /// <summary>
 /// Configuration options for retry policies.

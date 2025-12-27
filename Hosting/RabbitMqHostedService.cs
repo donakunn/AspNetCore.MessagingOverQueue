@@ -1,11 +1,11 @@
-using AsyncronousComunication.Configuration.Options;
-using AsyncronousComunication.Connection;
+using MessagingOverQueue.Configuration.Options;
+using MessagingOverQueue.Connection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 
-namespace AsyncronousComunication.Hosting;
+namespace MessagingOverQueue.Hosting;
 
 /// <summary>
 /// Hosted service that manages RabbitMQ topology and lifecycle.

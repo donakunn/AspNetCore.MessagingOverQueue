@@ -1,8 +1,8 @@
-using AsyncronousComunication.Abstractions.Messages;
-using AsyncronousComunication.Abstractions.Serialization;
+using MessagingOverQueue.Abstractions.Messages;
+using MessagingOverQueue.Abstractions.Serialization;
 using Microsoft.Extensions.Logging;
 
-namespace AsyncronousComunication.Consuming.Middleware;
+namespace MessagingOverQueue.Consuming.Middleware;
 
 /// <summary>
 /// Middleware that deserializes incoming messages.
@@ -74,82 +74,3 @@ public class DeserializationMiddleware : IConsumeMiddleware
         }
     }
 }
-
-///// <summary>
-///// Interface for resolving message types from type names.
-///// </summary>
-//public interface IMessageTypeResolver
-//{
-//    /// <summary>
-//    /// Resolves a type from its name.
-//    /// </summary>
-//    Type? ResolveType(string typeName);
-    
-//    /// <summary>
-//    /// Registers a message type.
-//    /// </summary>
-//    void RegisterType<T>() where T : IMessage;
-    
-//    /// <summary>
-//    /// Registers a message type.
-//    /// </summary>
-//    void RegisterType(Type type);
-//}
-
-///// <summary>
-///// Default implementation of message type resolver.
-///// </summary>
-//public class MessageTypeResolver : IMessageTypeResolver
-//{
-//    private readonly Dictionary<string, Type> _typeMap = new();
-//    private readonly object _lock = new();
-
-//    public Type? ResolveType(string typeName)
-//    {
-//        lock (_lock)
-//        {
-//            if (_typeMap.TryGetValue(typeName, out var type))
-//                return type;
-//        }
-
-//        // Try to resolve from assembly qualified name
-//        var resolvedType = Type.GetType(typeName, throwOnError: false);
-//        if (resolvedType != null)
-//        {
-//            RegisterType(resolvedType);
-//            return resolvedType;
-//        }
-
-//        // Try to find in loaded assemblies
-//        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-//        {
-//            resolvedType = assembly.GetType(typeName.Split(',')[0]);
-//            if (resolvedType != null)
-//            {
-//                RegisterType(resolvedType);
-//                return resolvedType;
-//            }
-//        }
-
-//        return null;
-//    }
-
-//    public void RegisterType<T>() where T : IMessage
-//    {
-//        RegisterType(typeof(T));
-//    }
-
-//    public void RegisterType(Type type)
-//    {
-//        lock (_lock)
-//        {
-//            var key = type.AssemblyQualifiedName ?? type.FullName ?? type.Name;
-//            _typeMap[key] = type;
-            
-//            // Also register by full name for easier resolution
-//            if (type.FullName != null)
-//                _typeMap[type.FullName] = type;
-//        }
-//    }
-//}
-

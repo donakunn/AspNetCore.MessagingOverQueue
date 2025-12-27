@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace AsyncronousComunication.Abstractions.Serialization;
+namespace MessagingOverQueue.Abstractions.Serialization;
 
 /// <summary>
 /// Default implementation of message type resolver.

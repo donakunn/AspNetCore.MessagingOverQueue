@@ -1,7 +1,7 @@
 using Polly;
 using Polly.CircuitBreaker;
 
-namespace AsyncronousComunication.Resilience;
+namespace MessagingOverQueue.Resilience;
 
 /// <summary>
 /// Configuration for circuit breaker.

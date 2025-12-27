@@ -1,13 +1,13 @@
 using System.Text.Json;
-using AsyncronousComunication.Abstractions.Publishing;
-using AsyncronousComunication.Configuration.Options;
-using AsyncronousComunication.Persistence.Entities;
-using AsyncronousComunication.Persistence.Repositories;
+using MessagingOverQueue.Abstractions.Publishing;
+using MessagingOverQueue.Configuration.Options;
+using MessagingOverQueue.Persistence.Entities;
+using MessagingOverQueue.Persistence.Repositories;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace AsyncronousComunication.Persistence;
+namespace MessagingOverQueue.Persistence;
 
 /// <summary>
 /// Background service that processes messages from the outbox.

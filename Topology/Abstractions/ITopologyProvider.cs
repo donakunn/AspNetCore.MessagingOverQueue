@@ -1,4 +1,4 @@
-namespace AsyncronousComunication.Topology.Abstractions;
+namespace MessagingOverQueue.Topology.Abstractions;
 
 /// <summary>
 /// Provides topology configuration for a specific message type.
@@ -64,7 +64,7 @@ public sealed class ExchangeDefinition
     public string Type { get; init; } = "topic";
     public bool Durable { get; init; } = true;
     public bool AutoDelete { get; init; }
-    public IDictionary<string, object>? Arguments { get; init; }
+    public IDictionary<string, object?>? Arguments { get; init; }
 }
 
 /// <summary>
@@ -92,7 +92,7 @@ public sealed class BindingDefinition
     public string ExchangeName { get; init; } = string.Empty;
     public string QueueName { get; init; } = string.Empty;
     public string RoutingKey { get; init; } = string.Empty;
-    public IDictionary<string, object>? Arguments { get; init; }
+    public IDictionary<string, object?>? Arguments { get; init; }
 }
 
 /// <summary>

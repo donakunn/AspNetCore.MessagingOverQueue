@@ -1,4 +1,4 @@
-namespace AsyncronousComunication.Abstractions.Consuming;
+namespace MessagingOverQueue.Abstractions.Consuming;
 
 /// <summary>
 /// Interface for consuming messages from RabbitMQ.

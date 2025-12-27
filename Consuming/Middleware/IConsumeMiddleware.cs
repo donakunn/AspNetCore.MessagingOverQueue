@@ -1,7 +1,7 @@
-using AsyncronousComunication.Abstractions.Consuming;
-using AsyncronousComunication.Abstractions.Messages;
+using MessagingOverQueue.Abstractions.Consuming;
+using MessagingOverQueue.Abstractions.Messages;
 
-namespace AsyncronousComunication.Consuming.Middleware;
+namespace MessagingOverQueue.Consuming.Middleware;
 
 /// <summary>
 /// Middleware for the consume pipeline.

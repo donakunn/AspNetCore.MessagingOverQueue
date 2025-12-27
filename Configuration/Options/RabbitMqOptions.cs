@@ -1,4 +1,4 @@
-namespace AsyncronousComunication.Configuration.Options;
+namespace MessagingOverQueue.Configuration.Options;
 
 /// <summary>
 /// Configuration options for RabbitMQ connection.
@@ -119,7 +119,7 @@ public class ExchangeOptions
     /// <summary>
     /// Additional arguments.
     /// </summary>
-    public Dictionary<string, object>? Arguments { get; set; }
+    public Dictionary<string, object?>? Arguments { get; set; }
 }
 
 /// <summary>
@@ -206,6 +206,6 @@ public class BindingOptions
     /// <summary>
     /// Additional arguments for headers exchange.
     /// </summary>
-    public Dictionary<string, object>? Arguments { get; set; }
+    public Dictionary<string, object?>? Arguments { get; set; }
 }
 

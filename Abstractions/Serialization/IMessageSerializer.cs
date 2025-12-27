@@ -1,6 +1,6 @@
-using AsyncronousComunication.Abstractions.Messages;
+using MessagingOverQueue.Abstractions.Messages;
 
-namespace AsyncronousComunication.Abstractions.Serialization;
+namespace MessagingOverQueue.Abstractions.Serialization;
 
 /// <summary>
 /// Interface for message serialization and deserialization.

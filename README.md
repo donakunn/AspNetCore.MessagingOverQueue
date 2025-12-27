@@ -16,7 +16,7 @@ A robust, high-performance asynchronous messaging library for .NET built on Rabb
 ## Installation
 
 ```bash
-dotnet add package AsyncronousComunication
+dotnet add package MessagingOverQueue
 ```
 
 ## Quick Start
@@ -24,7 +24,7 @@ dotnet add package AsyncronousComunication
 ### 1. Define Your Messages
 
 ```csharp
-using AsyncronousComunication.Abstractions.Messages;
+using MessagingOverQueue.Abstractions.Messages;
 
 // Command - handled by exactly one consumer
 public class CreateOrderCommand : Command
@@ -63,7 +63,7 @@ This automatically:
 #### Option B: Attribute-Based Topology
 
 ```csharp
-using AsyncronousComunication.Topology.Attributes;
+using MessagingOverQueue.Topology.Attributes;
 
 [Exchange("orders-exchange", Type = ExchangeType.Topic)]
 [Queue("order-events-queue", QueueType = QueueType.Quorum)]
@@ -265,7 +265,7 @@ Ensure messages are published reliably within database transactions.
 ### 1. Configure Your DbContext
 
 ```csharp
-using AsyncronousComunication.Persistence;
+using MessagingOverQueue.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 public class AppDbContext : DbContext, IOutboxDbContext

@@ -1,6 +1,6 @@
-using AsyncronousComunication.Configuration.Options;
+using MessagingOverQueue.Configuration.Options;
 
-namespace AsyncronousComunication.Configuration.Builders;
+namespace MessagingOverQueue.Configuration.Builders;
 
 /// <summary>
 /// Fluent builder for configuring RabbitMQ options.

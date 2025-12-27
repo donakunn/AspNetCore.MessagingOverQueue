@@ -1,11 +1,11 @@
 using System.Collections.Concurrent;
-using AsyncronousComunication.Configuration.Options;
+using MessagingOverQueue.Configuration.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
-namespace AsyncronousComunication.Connection;
+namespace MessagingOverQueue.Connection;
 
 /// <summary>
 /// Manages a pool of RabbitMQ connections and channels for efficient resource usage.

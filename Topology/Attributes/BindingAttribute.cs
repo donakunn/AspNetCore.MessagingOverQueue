@@ -1,4 +1,4 @@
-namespace AsyncronousComunication.Topology.Attributes;
+namespace MessagingOverQueue.Topology.Attributes;
 
 /// <summary>
 /// Specifies a binding configuration between exchange and queue.

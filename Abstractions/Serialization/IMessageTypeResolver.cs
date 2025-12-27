@@ -1,4 +1,4 @@
-namespace AsyncronousComunication.Abstractions.Serialization;
+namespace MessagingOverQueue.Abstractions.Serialization;
 
 /// <summary>
 /// Resolves message types from type names for deserialization.

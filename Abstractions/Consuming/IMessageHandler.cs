@@ -1,6 +1,6 @@
-using AsyncronousComunication.Abstractions.Messages;
+using MessagingOverQueue.Abstractions.Messages;
 
-namespace AsyncronousComunication.Abstractions.Consuming;
+namespace MessagingOverQueue.Abstractions.Consuming;
 
 /// <summary>
 /// Interface for handling messages of a specific type.

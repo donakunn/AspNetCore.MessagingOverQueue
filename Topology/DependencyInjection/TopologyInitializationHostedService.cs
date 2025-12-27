@@ -1,11 +1,11 @@
-using AsyncronousComunication.Topology.Abstractions;
-using AsyncronousComunication.Topology.Builders;
-using AsyncronousComunication.Topology.Conventions;
+using MessagingOverQueue.Topology.Abstractions;
+using MessagingOverQueue.Topology.Builders;
+using MessagingOverQueue.Topology.Conventions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace AsyncronousComunication.Topology.DependencyInjection;
+namespace MessagingOverQueue.Topology.DependencyInjection;
 
 /// <summary>
 /// Hosted service that initializes topology on startup.

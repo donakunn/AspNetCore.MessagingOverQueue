@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 
-namespace AsyncronousComunication.Publishing.Middleware;
+namespace MessagingOverQueue.Publishing.Middleware;
 
 /// <summary>
 /// Middleware that logs publishing operations.

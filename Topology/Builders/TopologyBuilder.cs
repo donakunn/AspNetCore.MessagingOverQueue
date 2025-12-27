@@ -1,8 +1,8 @@
 using System.Reflection;
-using AsyncronousComunication.Topology.Abstractions;
-using AsyncronousComunication.Topology.Conventions;
+using MessagingOverQueue.Topology.Abstractions;
+using MessagingOverQueue.Topology.Conventions;
 
-namespace AsyncronousComunication.Topology.Builders;
+namespace MessagingOverQueue.Topology.Builders;
 
 /// <summary>
 /// Fluent builder for configuring topology.
@@ -358,7 +358,7 @@ public sealed class ExchangeDefinitionBuilder
     private string _type = "topic";
     private bool _durable = true;
     private bool _autoDelete;
-    private Dictionary<string, object>? _arguments;
+    private Dictionary<string, object?>? _arguments;
 
     /// <summary>
     /// Sets the exchange name.
@@ -428,7 +428,7 @@ public sealed class ExchangeDefinitionBuilder
     /// </summary>
     public ExchangeDefinitionBuilder WithArgument(string key, object value)
     {
-        _arguments ??= new Dictionary<string, object>();
+        _arguments ??= [];
         _arguments[key] = value;
         return this;
     }

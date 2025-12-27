@@ -1,6 +1,6 @@
-using AsyncronousComunication.Configuration.Options;
+using MessagingOverQueue.Configuration.Options;
 
-namespace AsyncronousComunication.Configuration.Builders;
+namespace MessagingOverQueue.Configuration.Builders;
 
 /// <summary>
 /// Fluent builder for configuring bindings.
@@ -41,7 +41,7 @@ public class BindingBuilder
     /// </summary>
     public BindingBuilder WithArgument(string key, object value)
     {
-        _options.Arguments ??= new Dictionary<string, object>();
+        _options.Arguments ??= [];
         _options.Arguments[key] = value;
         return this;
     }
@@ -51,7 +51,7 @@ public class BindingBuilder
     /// </summary>
     public BindingBuilder MatchAll()
     {
-        _options.Arguments ??= new Dictionary<string, object>();
+        _options.Arguments ??= [];
         _options.Arguments["x-match"] = "all";
         return this;
     }
@@ -61,7 +61,7 @@ public class BindingBuilder
     /// </summary>
     public BindingBuilder MatchAny()
     {
-        _options.Arguments ??= new Dictionary<string, object>();
+        _options.Arguments ??= [];
         _options.Arguments["x-match"] = "any";
         return this;
     }

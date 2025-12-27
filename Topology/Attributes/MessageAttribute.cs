@@ -1,4 +1,4 @@
-namespace AsyncronousComunication.Topology.Attributes;
+namespace MessagingOverQueue.Topology.Attributes;
 
 /// <summary>
 /// Marks a message type for auto-discovery by the topology scanner.

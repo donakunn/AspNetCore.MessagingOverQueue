@@ -1,8 +1,8 @@
-using AsyncronousComunication.Connection;
+using MessagingOverQueue.Connection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 
-namespace AsyncronousComunication.HealthChecks;
+namespace MessagingOverQueue.HealthChecks;
 
 /// <summary>
 /// Health check for RabbitMQ connection.

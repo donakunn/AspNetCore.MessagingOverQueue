@@ -1,10 +1,10 @@
 using System.Reflection;
-using AsyncronousComunication.Abstractions.Messages;
-using AsyncronousComunication.Topology.Abstractions;
-using AsyncronousComunication.Topology.Attributes;
-using AsyncronousComunication.Topology.Conventions;
+using MessagingOverQueue.Abstractions.Messages;
+using MessagingOverQueue.Topology.Abstractions;
+using MessagingOverQueue.Topology.Attributes;
+using MessagingOverQueue.Topology.Conventions;
 
-namespace AsyncronousComunication.Topology;
+namespace MessagingOverQueue.Topology;
 
 /// <summary>
 /// Convention-based topology provider that combines conventions with attribute overrides.

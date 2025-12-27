@@ -1,8 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using AsyncronousComunication.Abstractions.Messages;
+using MessagingOverQueue.Abstractions.Messages;
 
-namespace AsyncronousComunication.Abstractions.Serialization;
+namespace MessagingOverQueue.Abstractions.Serialization;
 
 /// <summary>
 /// JSON-based message serializer using System.Text.Json.

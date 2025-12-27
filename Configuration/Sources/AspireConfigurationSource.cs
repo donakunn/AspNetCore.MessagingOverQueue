@@ -1,7 +1,7 @@
-using AsyncronousComunication.Configuration.Options;
+using MessagingOverQueue.Configuration.Options;
 using Microsoft.Extensions.Configuration;
 
-namespace AsyncronousComunication.Configuration.Sources;
+namespace MessagingOverQueue.Configuration.Sources;
 
 /// <summary>
 /// Configuration source that integrates with .NET Aspire service discovery and configuration.

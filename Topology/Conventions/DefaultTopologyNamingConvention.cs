@@ -1,8 +1,8 @@
 using System.Text.RegularExpressions;
-using AsyncronousComunication.Abstractions.Messages;
-using AsyncronousComunication.Topology.Abstractions;
+using MessagingOverQueue.Abstractions.Messages;
+using MessagingOverQueue.Topology.Abstractions;
 
-namespace AsyncronousComunication.Topology.Conventions;
+namespace MessagingOverQueue.Topology.Conventions;
 
 /// <summary>
 /// Default naming convention for RabbitMQ topology.

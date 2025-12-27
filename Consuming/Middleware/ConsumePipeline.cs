@@ -1,4 +1,4 @@
-namespace AsyncronousComunication.Consuming.Middleware;
+namespace MessagingOverQueue.Consuming.Middleware;
 
 /// <summary>
 /// Builds and executes the consume middleware pipeline.

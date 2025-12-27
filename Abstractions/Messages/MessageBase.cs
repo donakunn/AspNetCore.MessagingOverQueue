@@ -1,4 +1,4 @@
-namespace AsyncronousComunication.Abstractions.Messages;
+namespace MessagingOverQueue.Abstractions.Messages;
 
 /// <summary>
 /// Abstract base class for all messages providing common functionality.

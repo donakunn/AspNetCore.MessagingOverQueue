@@ -1,12 +1,12 @@
 using System.Text.Json;
-using AsyncronousComunication.Abstractions.Messages;
-using AsyncronousComunication.Abstractions.Publishing;
-using AsyncronousComunication.Abstractions.Serialization;
-using AsyncronousComunication.Persistence.Entities;
-using AsyncronousComunication.Persistence.Repositories;
+using MessagingOverQueue.Abstractions.Messages;
+using MessagingOverQueue.Abstractions.Publishing;
+using MessagingOverQueue.Abstractions.Serialization;
+using MessagingOverQueue.Persistence.Entities;
+using MessagingOverQueue.Persistence.Repositories;
 using Microsoft.Extensions.Logging;
 
-namespace AsyncronousComunication.Persistence;
+namespace MessagingOverQueue.Persistence;
 
 /// <summary>
 /// Publisher that stores messages in the outbox for reliable delivery.

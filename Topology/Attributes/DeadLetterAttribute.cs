@@ -1,4 +1,4 @@
-namespace AsyncronousComunication.Topology.Attributes;
+namespace MessagingOverQueue.Topology.Attributes;
 
 /// <summary>
 /// Configures dead letter handling for a message type.

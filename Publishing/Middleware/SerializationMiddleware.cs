@@ -1,7 +1,7 @@
-using AsyncronousComunication.Abstractions.Serialization;
+using MessagingOverQueue.Abstractions.Serialization;
 using Microsoft.Extensions.Logging;
 
-namespace AsyncronousComunication.Publishing.Middleware;
+namespace MessagingOverQueue.Publishing.Middleware;
 
 /// <summary>
 /// Middleware that serializes messages before publishing.

@@ -1,14 +1,14 @@
-using AsyncronousComunication.Abstractions.Consuming;
-using AsyncronousComunication.Abstractions.Messages;
-using AsyncronousComunication.Configuration.Options;
-using AsyncronousComunication.Connection;
-using AsyncronousComunication.Consuming.Middleware;
+using MessagingOverQueue.Abstractions.Consuming;
+using MessagingOverQueue.Abstractions.Messages;
+using MessagingOverQueue.Configuration.Options;
+using MessagingOverQueue.Connection;
+using MessagingOverQueue.Consuming.Middleware;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
-namespace AsyncronousComunication.Consuming;
+namespace MessagingOverQueue.Consuming;
 
 /// <summary>
 /// RabbitMQ implementation of message consumer.
@@ -133,7 +133,7 @@ public class RabbitMqConsumer : IMessageConsumer
             .ToDictionary(
                 x => x.Key, 
                 x => x.Value is byte[] bytes ? System.Text.Encoding.UTF8.GetString(bytes) : x.Value)
-            ?? new Dictionary<string, object>();
+            ?? [];
 
         var messageContext = new MessageContext(
             messageId: Guid.TryParse(args.BasicProperties.MessageId, out var id) ? id : Guid.NewGuid(),

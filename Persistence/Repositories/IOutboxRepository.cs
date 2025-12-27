@@ -1,6 +1,6 @@
-using AsyncronousComunication.Persistence.Entities;
+using MessagingOverQueue.Persistence.Entities;
 
-namespace AsyncronousComunication.Persistence.Repositories;
+namespace MessagingOverQueue.Persistence.Repositories;
 
 /// <summary>
 /// Repository interface for outbox operations.

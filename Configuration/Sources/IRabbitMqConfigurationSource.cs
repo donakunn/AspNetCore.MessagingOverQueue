@@ -1,6 +1,6 @@
-using AsyncronousComunication.Configuration.Options;
+using MessagingOverQueue.Configuration.Options;
 
-namespace AsyncronousComunication.Configuration.Sources;
+namespace MessagingOverQueue.Configuration.Sources;
 
 /// <summary>
 /// Represents a source of RabbitMQ configuration.

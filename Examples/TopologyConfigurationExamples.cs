@@ -1,9 +1,9 @@
-using AsyncronousComunication.DependencyInjection;
-using AsyncronousComunication.Examples.Messages;
-using AsyncronousComunication.Topology.DependencyInjection;
+using MessagingOverQueue.DependencyInjection;
+using MessagingOverQueue.Examples.Messages;
+using MessagingOverQueue.Topology.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace AsyncronousComunication.Examples;
+namespace MessagingOverQueue.Examples;
 
 /// <summary>
 /// Examples demonstrating topology configuration patterns.

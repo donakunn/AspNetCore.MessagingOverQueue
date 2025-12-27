@@ -1,8 +1,8 @@
-using AsyncronousComunication.Persistence.Entities;
+using MessagingOverQueue.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace AsyncronousComunication.Persistence;
+namespace MessagingOverQueue.Persistence;
 
 /// <summary>
 /// Interface for DbContext that supports the outbox pattern.

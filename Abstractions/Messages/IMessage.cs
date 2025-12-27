@@ -1,4 +1,4 @@
-namespace AsyncronousComunication.Abstractions.Messages;
+namespace MessagingOverQueue.Abstractions.Messages;
 
 /// <summary>
 /// Base interface for all messages in the system.

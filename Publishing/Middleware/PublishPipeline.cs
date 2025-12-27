@@ -1,4 +1,4 @@
-namespace AsyncronousComunication.Publishing.Middleware;
+namespace MessagingOverQueue.Publishing.Middleware;
 
 /// <summary>
 /// Builds and executes the publish middleware pipeline.

@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace AsyncronousComunication.Topology.Abstractions;
+namespace MessagingOverQueue.Topology.Abstractions;
 
 /// <summary>
 /// Scans assemblies for message types and handlers to auto-discover topology.

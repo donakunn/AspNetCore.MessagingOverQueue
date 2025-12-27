@@ -1,4 +1,4 @@
-namespace AsyncronousComunication.Persistence.Entities;
+namespace MessagingOverQueue.Persistence.Entities;
 
 /// <summary>
 /// Entity representing a processed message in the inbox (for idempotency).

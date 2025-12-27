@@ -1,9 +1,9 @@
-using AsyncronousComunication.Configuration.Sources;
-using AsyncronousComunication.DependencyInjection;
+using MessagingOverQueue.Configuration.Sources;
+using MessagingOverQueue.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace AsyncronousComunication.Examples;
+namespace MessagingOverQueue.Examples;
 
 /// <summary>
 /// Examples demonstrating different configuration approaches for RabbitMQ messaging.

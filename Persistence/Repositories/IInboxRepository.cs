@@ -1,8 +1,8 @@
-using AsyncronousComunication.Abstractions.Consuming;
-using AsyncronousComunication.Abstractions.Messages;
-using AsyncronousComunication.Persistence.Entities;
+using MessagingOverQueue.Abstractions.Consuming;
+using MessagingOverQueue.Abstractions.Messages;
+using MessagingOverQueue.Persistence.Entities;
 
-namespace AsyncronousComunication.Persistence.Repositories;
+namespace MessagingOverQueue.Persistence.Repositories;
 
 /// <summary>
 /// Repository interface for inbox operations (idempotency).

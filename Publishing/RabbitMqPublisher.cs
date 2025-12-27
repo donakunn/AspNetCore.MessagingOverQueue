@@ -1,12 +1,12 @@
-using AsyncronousComunication.Abstractions.Messages;
-using AsyncronousComunication.Abstractions.Publishing;
-using AsyncronousComunication.Connection;
-using AsyncronousComunication.Publishing.Middleware;
-using AsyncronousComunication.Topology;
+using MessagingOverQueue.Abstractions.Messages;
+using MessagingOverQueue.Abstractions.Publishing;
+using MessagingOverQueue.Connection;
+using MessagingOverQueue.Publishing.Middleware;
+using MessagingOverQueue.Topology;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 
-namespace AsyncronousComunication.Publishing;
+namespace MessagingOverQueue.Publishing;
 
 /// <summary>
 /// RabbitMQ implementation of message publisher.
