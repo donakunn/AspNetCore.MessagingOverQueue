@@ -11,6 +11,32 @@ public class RabbitMqOptionsBuilder
     private readonly List<Action<RabbitMqOptions>> _configurations = new();
 
     /// <summary>
+    /// Initializes a new instance with default values.
+    /// </summary>
+    public RabbitMqOptionsBuilder()
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance with existing options as a base.
+    /// </summary>
+    public RabbitMqOptionsBuilder(RabbitMqOptions baseOptions)
+    {
+        if (baseOptions == null)
+            throw new ArgumentNullException(nameof(baseOptions));
+        
+        _configurations.Add(options => CopyOptions(baseOptions, options));
+    }
+
+    /// <summary>
+    /// Creates a builder from existing options.
+    /// </summary>
+    public static RabbitMqOptionsBuilder FromOptions(RabbitMqOptions options)
+    {
+        return new RabbitMqOptionsBuilder(options);
+    }
+
+    /// <summary>
     /// Sets the RabbitMQ host name.
     /// </summary>
     public RabbitMqOptionsBuilder UseHost(string hostName)
@@ -156,6 +182,26 @@ public class RabbitMqOptionsBuilder
             configuration(_options);
         }
         return _options;
+    }
+
+    private static void CopyOptions(RabbitMqOptions source, RabbitMqOptions target)
+    {
+        target.HostName = source.HostName;
+        target.Port = source.Port;
+        target.UserName = source.UserName;
+        target.Password = source.Password;
+        target.VirtualHost = source.VirtualHost;
+        target.ConnectionTimeout = source.ConnectionTimeout;
+        target.RequestedHeartbeat = source.RequestedHeartbeat;
+        target.UseSsl = source.UseSsl;
+        target.SslServerName = source.SslServerName;
+        target.ClientProvidedName = source.ClientProvidedName;
+        target.ChannelPoolSize = source.ChannelPoolSize;
+        target.AutomaticRecoveryEnabled = source.AutomaticRecoveryEnabled;
+        target.NetworkRecoveryInterval = source.NetworkRecoveryInterval;
+        target.Exchanges = new List<ExchangeOptions>(source.Exchanges);
+        target.Queues = new List<QueueOptions>(source.Queues);
+        target.Bindings = new List<BindingOptions>(source.Bindings);
     }
 }
 

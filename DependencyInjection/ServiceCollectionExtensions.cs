@@ -4,6 +4,7 @@ using AsyncronousComunication.Abstractions.Publishing;
 using AsyncronousComunication.Abstractions.Serialization;
 using AsyncronousComunication.Configuration.Builders;
 using AsyncronousComunication.Configuration.Options;
+using AsyncronousComunication.Configuration.Sources;
 using AsyncronousComunication.Connection;
 using AsyncronousComunication.Consuming.Middleware;
 using AsyncronousComunication.HealthChecks;
@@ -13,7 +14,11 @@ using AsyncronousComunication.Persistence.Repositories;
 using AsyncronousComunication.Publishing;
 using AsyncronousComunication.Publishing.Middleware;
 using AsyncronousComunication.Resilience;
+using AsyncronousComunication.Topology;
+using AsyncronousComunication.Topology.Abstractions;
+using AsyncronousComunication.Topology.Conventions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -26,7 +31,7 @@ namespace AsyncronousComunication.DependencyInjection;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds RabbitMQ messaging services to the service collection.
+    /// Adds RabbitMQ messaging services using fluent configuration.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configure">Configuration action for RabbitMQ options.</param>
@@ -35,34 +40,146 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         Action<RabbitMqOptionsBuilder> configure)
     {
-        var builder = new RabbitMqOptionsBuilder();
-        configure(builder);
-        var options = builder.Build();
+        var composer = new RabbitMqConfigurationComposer()
+            .AddSource(new FluentConfigurationSource(configure));
+        
+        return services.AddRabbitMqMessagingCore(composer);
+    }
 
-        services.Configure<RabbitMqOptions>(opt =>
-        {
-            opt.HostName = options.HostName;
-            opt.Port = options.Port;
-            opt.UserName = options.UserName;
-            opt.Password = options.Password;
-            opt.VirtualHost = options.VirtualHost;
-            opt.UseSsl = options.UseSsl;
-            opt.SslServerName = options.SslServerName;
-            opt.ClientProvidedName = options.ClientProvidedName;
-            opt.ConnectionTimeout = options.ConnectionTimeout;
-            opt.RequestedHeartbeat = options.RequestedHeartbeat;
-            opt.ChannelPoolSize = options.ChannelPoolSize;
-            opt.AutomaticRecoveryEnabled = options.AutomaticRecoveryEnabled;
-            opt.NetworkRecoveryInterval = options.NetworkRecoveryInterval;
-            opt.Exchanges = options.Exchanges;
-            opt.Queues = options.Queues;
-            opt.Bindings = options.Bindings;
-        });
+    /// <summary>
+    /// Adds RabbitMQ messaging services using IConfiguration (appsettings.json).
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The configuration instance.</param>
+    /// <param name="sectionName">The configuration section name (default: "RabbitMq").</param>
+    /// <returns>The messaging builder for further configuration.</returns>
+    public static IMessagingBuilder AddRabbitMqMessaging(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        string? sectionName = null)
+    {
+        var composer = new RabbitMqConfigurationComposer()
+            .AddSource(new AppSettingsConfigurationSource(configuration, sectionName));
+        
+        return services.AddRabbitMqMessagingCore(composer);
+    }
+
+    /// <summary>
+    /// Adds RabbitMQ messaging services using IConfiguration and fluent configuration.
+    /// Fluent configuration takes precedence over appsettings.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The configuration instance.</param>
+    /// <param name="configure">Additional fluent configuration.</param>
+    /// <param name="sectionName">The configuration section name (default: "RabbitMq").</param>
+    /// <returns>The messaging builder for further configuration.</returns>
+    public static IMessagingBuilder AddRabbitMqMessaging(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        Action<RabbitMqOptionsBuilder> configure,
+        string? sectionName = null)
+    {
+        var composer = new RabbitMqConfigurationComposer()
+            .AddSource(new AppSettingsConfigurationSource(configuration, sectionName))
+            .AddSource(new FluentConfigurationSource(configure));
+        
+        return services.AddRabbitMqMessagingCore(composer);
+    }
+
+    /// <summary>
+    /// Adds RabbitMQ messaging services using .NET Aspire service discovery.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The configuration instance.</param>
+    /// <param name="connectionName">The Aspire connection name (default: "rabbitmq").</param>
+    /// <returns>The messaging builder for further configuration.</returns>
+    public static IMessagingBuilder AddRabbitMqMessagingFromAspire(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        string connectionName = "rabbitmq")
+    {
+        var composer = new RabbitMqConfigurationComposer()
+            .AddSource(new AspireConfigurationSource(configuration, connectionName));
+        
+        return services.AddRabbitMqMessagingCore(composer);
+    }
+
+    /// <summary>
+    /// Adds RabbitMQ messaging services using .NET Aspire with fluent override.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The configuration instance.</param>
+    /// <param name="configure">Additional fluent configuration.</param>
+    /// <param name="connectionName">The Aspire connection name (default: "rabbitmq").</param>
+    /// <returns>The messaging builder for further configuration.</returns>
+    public static IMessagingBuilder AddRabbitMqMessagingFromAspire(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        Action<RabbitMqOptionsBuilder> configure,
+        string connectionName = "rabbitmq")
+    {
+        var composer = new RabbitMqConfigurationComposer()
+            .AddSource(new AspireConfigurationSource(configuration, connectionName))
+            .AddSource(new FluentConfigurationSource(configure));
+        
+        return services.AddRabbitMqMessagingCore(composer);
+    }
+
+    /// <summary>
+    /// Adds RabbitMQ messaging services using custom configuration sources.
+    /// This allows complete control over configuration composition.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configureSources">Action to configure the composer with custom sources.</param>
+    /// <returns>The messaging builder for further configuration.</returns>
+    public static IMessagingBuilder AddRabbitMqMessaging(
+        this IServiceCollection services,
+        Action<RabbitMqConfigurationComposer> configureSources)
+    {
+        var composer = new RabbitMqConfigurationComposer();
+        configureSources(composer);
+        
+        return services.AddRabbitMqMessagingCore(composer);
+    }
+
+    /// <summary>
+    /// Adds RabbitMQ messaging with default configuration.
+    /// </summary>
+    public static IMessagingBuilder AddRabbitMqMessaging(this IServiceCollection services)
+    {
+        var composer = new RabbitMqConfigurationComposer()
+            .AddSource(new FluentConfigurationSource(_ => { }));
+        
+        return services.AddRabbitMqMessagingCore(composer);
+    }
+
+    /// <summary>
+    /// Core method that registers all RabbitMQ services.
+    /// </summary>
+    private static IMessagingBuilder AddRabbitMqMessagingCore(
+        this IServiceCollection services,
+        RabbitMqConfigurationComposer composer)
+    {
+        // Configure options using the composer
+        services.Configure<RabbitMqOptions>(composer.CreateConfigureAction());
 
         // Core services
         services.TryAddSingleton<IRabbitMqConnectionPool, RabbitMqConnectionPool>();
         services.TryAddSingleton<IMessageSerializer, JsonMessageSerializer>();
         services.TryAddSingleton<IMessageTypeResolver, MessageTypeResolver>();
+
+        // Topology services (basic registration - can be enhanced with AddTopology())
+        services.TryAddSingleton<ITopologyNamingConvention, DefaultTopologyNamingConvention>();
+        services.TryAddSingleton<ITopologyRegistry, TopologyRegistry>();
+        services.TryAddSingleton<ITopologyScanner, TopologyScanner>();
+        services.TryAddSingleton<ITopologyProvider>(sp =>
+        {
+            var namingConvention = sp.GetRequiredService<ITopologyNamingConvention>();
+            var registry = sp.GetRequiredService<ITopologyRegistry>();
+            return new ConventionBasedTopologyProvider(namingConvention, registry);
+        });
+        services.TryAddSingleton<ITopologyDeclarer, TopologyDeclarer>();
+        services.TryAddSingleton<IMessageRoutingResolver, MessageRoutingResolver>();
 
         // Publishers
         services.TryAddSingleton<RabbitMqPublisher>();
@@ -86,14 +203,6 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<RabbitMqHostedService>();
 
         return new MessagingBuilder(services);
-    }
-
-    /// <summary>
-    /// Adds RabbitMQ messaging with default configuration.
-    /// </summary>
-    public static IMessagingBuilder AddRabbitMqMessaging(this IServiceCollection services)
-    {
-        return services.AddRabbitMqMessaging(_ => { });
     }
 
     /// <summary>

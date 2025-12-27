@@ -2,6 +2,7 @@ using AsyncronousComunication.Abstractions.Messages;
 using AsyncronousComunication.Abstractions.Publishing;
 using AsyncronousComunication.Connection;
 using AsyncronousComunication.Publishing.Middleware;
+using AsyncronousComunication.Topology;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 
@@ -14,15 +15,18 @@ public class RabbitMqPublisher : IMessagePublisher, IEventPublisher, ICommandSen
 {
     private readonly IRabbitMqConnectionPool _connectionPool;
     private readonly IEnumerable<IPublishMiddleware> _middlewares;
+    private readonly IMessageRoutingResolver _routingResolver;
     private readonly ILogger<RabbitMqPublisher> _logger;
 
     public RabbitMqPublisher(
         IRabbitMqConnectionPool connectionPool,
         IEnumerable<IPublishMiddleware> middlewares,
+        IMessageRoutingResolver routingResolver,
         ILogger<RabbitMqPublisher> logger)
     {
         _connectionPool = connectionPool;
         _middlewares = middlewares;
+        _routingResolver = routingResolver;
         _logger = logger;
     }
 
@@ -37,12 +41,16 @@ public class RabbitMqPublisher : IMessagePublisher, IEventPublisher, ICommandSen
 
     public async Task PublishAsync<T>(T message, PublishOptions options, CancellationToken cancellationToken = default) where T : IMessage
     {
+        // Use routing resolver for defaults if not explicitly specified
+        var exchangeName = options.ExchangeName ?? _routingResolver.GetExchangeName<T>();
+        var routingKey = options.RoutingKey ?? _routingResolver.GetRoutingKey<T>();
+
         var context = new PublishContext
         {
             Message = message,
             MessageType = typeof(T),
-            ExchangeName = options.ExchangeName,
-            RoutingKey = options.RoutingKey ?? GetDefaultRoutingKey<T>(),
+            ExchangeName = exchangeName,
+            RoutingKey = routingKey,
             Persistent = options.Persistent,
             Priority = options.Priority,
             TimeToLive = options.TimeToLive,
@@ -64,19 +72,20 @@ public class RabbitMqPublisher : IMessagePublisher, IEventPublisher, ICommandSen
 
     public Task PublishAsync<T>(T @event, CancellationToken cancellationToken = default) where T : IEvent
     {
-        var exchangeName = GetExchangeName<T>();
-        var routingKey = GetDefaultRoutingKey<T>();
+        var exchangeName = _routingResolver.GetExchangeName<T>();
+        var routingKey = _routingResolver.GetRoutingKey<T>();
         return PublishAsync(@event, exchangeName, routingKey, cancellationToken);
     }
 
     public Task SendAsync<T>(T command, CancellationToken cancellationToken = default) where T : ICommand
     {
-        var queueName = GetQueueName<T>();
+        var queueName = _routingResolver.GetQueueName<T>();
         return SendAsync(command, queueName, cancellationToken);
     }
 
     public Task SendAsync<T>(T command, string queueName, CancellationToken cancellationToken = default) where T : ICommand
     {
+        // Commands are sent directly to queue using default exchange
         return PublishAsync(command, string.Empty, queueName, cancellationToken);
     }
 
@@ -111,30 +120,14 @@ public class RabbitMqPublisher : IMessagePublisher, IEventPublisher, ICommandSen
                 body: context.Body ?? Array.Empty<byte>(),
                 cancellationToken: cancellationToken);
 
-            _logger.LogDebug("Message {MessageId} published successfully", context.Message.Id);
+            _logger.LogDebug(
+                "Message {MessageId} published to exchange '{Exchange}' with routing key '{RoutingKey}'",
+                context.Message.Id, context.ExchangeName, context.RoutingKey);
         }
         finally
         {
             _connectionPool.ReturnChannel(channel);
         }
-    }
-
-    private static string GetExchangeName<T>() where T : IMessage
-    {
-        var type = typeof(T);
-        return $"{type.Namespace}.{type.Name}".Replace(".", "-").ToLowerInvariant();
-    }
-
-    private static string GetQueueName<T>() where T : IMessage
-    {
-        var type = typeof(T);
-        return $"{type.Namespace}.{type.Name}".Replace(".", "-").ToLowerInvariant();
-    }
-
-    private static string GetDefaultRoutingKey<T>() where T : IMessage
-    {
-        var type = typeof(T);
-        return type.FullName?.Replace(".", ".") ?? type.Name;
     }
 }
 
