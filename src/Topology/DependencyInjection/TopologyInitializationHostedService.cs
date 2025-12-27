@@ -1,7 +1,11 @@
+using MessagingOverQueue.src.Abstractions.Consuming;
+using MessagingOverQueue.src.Configuration.Options;
+using MessagingOverQueue.src.Hosting;
 using MessagingOverQueue.src.Topology.Abstractions;
 using MessagingOverQueue.src.Topology.Builders;
 using MessagingOverQueue.Topology.Conventions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -9,6 +13,7 @@ namespace MessagingOverQueue.src.Topology.DependencyInjection;
 
 /// <summary>
 /// Hosted service that initializes topology on startup.
+/// Supports handler-based auto-discovery for automatic consumer registration.
 /// </summary>
 internal sealed class TopologyInitializationHostedService : IHostedService
 {
@@ -32,35 +37,25 @@ internal sealed class TopologyInitializationHostedService : IHostedService
         var provider = _serviceProvider.GetRequiredService<ITopologyProvider>();
         var declarer = _serviceProvider.GetRequiredService<ITopologyDeclarer>();
         var configuration = _serviceProvider.GetService<TopologyConfiguration>();
+        var handlerRegistry = _serviceProvider.GetService<HandlerRegistryService>();
 
-        // Process topology builder configuration
         if (configuration != null)
         {
             var builder = configuration.Builder;
 
             // Register manually configured topologies
-            foreach (var definition in builder.Definitions)
-            {
-                if (!string.IsNullOrEmpty(definition.Queue.Name))
-                {
-                    registry.Register(definition);
-                }
-            }
+            RegisterManualTopologies(registry, builder);
 
-            // Scan assemblies if auto-discovery is enabled
+            // Process auto-discovery
             if (builder.AutoDiscoverEnabled && builder.AssembliesToScan.Count > 0)
             {
-                _logger.LogDebug("Scanning {Count} assemblies for message types", builder.AssembliesToScan.Count);
-
-                var messageTypes = scanner.ScanForMessageTypes(builder.AssembliesToScan.ToArray());
-
-                _logger.LogDebug("Found {Count} message types", messageTypes.Count);
-
-                foreach (var messageTypeInfo in messageTypes)
+                if (builder.UseHandlerBasedDiscovery)
                 {
-                    // Get topology from provider (uses conventions + attributes)
-                    var topology = provider.GetTopology(messageTypeInfo.MessageType);
-                    registry.Register(topology);
+                    ProcessHandlerBasedDiscovery(builder, scanner, registry, handlerRegistry);
+                }
+                else
+                {
+                    ProcessMessageTypeDiscovery(builder, scanner, provider, registry);
                 }
             }
         }
@@ -88,10 +83,74 @@ internal sealed class TopologyInitializationHostedService : IHostedService
         return Task.CompletedTask;
     }
 
+    private void RegisterManualTopologies(ITopologyRegistry registry, TopologyBuilder builder)
+    {
+        foreach (var definition in builder.Definitions)
+        {
+            if (!string.IsNullOrEmpty(definition.Queue.Name))
+            {
+                registry.Register(definition);
+            }
+        }
+    }
+
+    private void ProcessHandlerBasedDiscovery(
+        TopologyBuilder builder,
+        ITopologyScanner scanner,
+        ITopologyRegistry registry,
+        HandlerRegistryService? handlerRegistry)
+    {
+        _logger.LogDebug("Scanning {Count} assemblies for message handlers", builder.AssembliesToScan.Count);
+
+        var handlerTopologies = scanner.ScanForHandlerTopology(builder.AssembliesToScan.ToArray());
+
+        _logger.LogDebug("Found {Count} message handlers", handlerTopologies.Count);
+
+        var namingConvention = new DefaultTopologyNamingConvention(builder.NamingOptions);
+        var topologyBuilder = new HandlerTopologyBuilder(namingConvention, builder.ProviderOptions);
+
+        foreach (var handlerInfo in handlerTopologies)
+        {
+            var registration = topologyBuilder.BuildHandlerRegistration(handlerInfo);
+            
+            // Register the topology
+            if (registration.TopologyDefinition != null)
+            {
+                registry.Register(registration.TopologyDefinition);
+            }
+
+            // Register handler for DI and consumer setup
+            handlerRegistry?.RegisterHandler(registration);
+
+            _logger.LogDebug(
+                "Registered handler {Handler} for message {Message} on queue {Queue}",
+                handlerInfo.HandlerType.Name,
+                handlerInfo.MessageType.Name,
+                registration.QueueName);
+        }
+    }
+
+    private void ProcessMessageTypeDiscovery(
+        TopologyBuilder builder,
+        ITopologyScanner scanner,
+        ITopologyProvider provider,
+        ITopologyRegistry registry)
+    {
+        _logger.LogDebug("Scanning {Count} assemblies for message types (legacy mode)", builder.AssembliesToScan.Count);
+
+        var messageTypes = scanner.ScanForMessageTypes(builder.AssembliesToScan.ToArray());
+
+        _logger.LogDebug("Found {Count} message types", messageTypes.Count);
+
+        foreach (var messageTypeInfo in messageTypes)
+        {
+            var topology = provider.GetTopology(messageTypeInfo.MessageType);
+            registry.Register(topology);
+        }
+    }
+
     private void ProcessMessageTopologyRegistrations(ITopologyRegistry registry, ITopologyProvider provider)
     {
-        // Get all registered message topology registrations using reflection
-        // This allows for type-specific configuration
         var registrations = _serviceProvider.GetServices<object>()
             .Where(s => s.GetType().IsGenericType &&
                        s.GetType().GetGenericTypeDefinition() == typeof(MessageTopologyRegistration<>));
@@ -106,11 +165,9 @@ internal sealed class TopologyInitializationHostedService : IHostedService
 
             if (configureAction != null)
             {
-                // Build topology with custom configuration
                 var namingOptions = _serviceProvider.GetService<TopologyConfiguration>()?.Builder.NamingOptions
                                    ?? new TopologyNamingOptions();
 
-                // Use reflection to create and configure the builder
                 var builderType = typeof(MessageTopologyBuilder<>).MakeGenericType(messageType);
                 var builderInstance = Activator.CreateInstance(builderType,
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
@@ -120,12 +177,10 @@ internal sealed class TopologyInitializationHostedService : IHostedService
 
                 if (builderInstance != null)
                 {
-                    // Invoke the configure action
                     var delegateType = typeof(Action<>).MakeGenericType(builderType);
                     var invokeMethod = delegateType.GetMethod("Invoke");
-                    invokeMethod?.Invoke(configureAction, new[] { builderInstance });
+                    invokeMethod?.Invoke(configureAction, [builderInstance]);
 
-                    // Build and register
                     var buildMethod = builderType.GetMethod("Build",
                         System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
@@ -137,10 +192,63 @@ internal sealed class TopologyInitializationHostedService : IHostedService
             }
             else
             {
-                // Use default topology from provider
                 var topology = provider.GetTopology(messageType);
                 registry.Register(topology);
             }
+        }
+    }
+}
+
+/// <summary>
+/// Service that holds discovered handler registrations for consumer setup.
+/// </summary>
+public sealed class HandlerRegistryService
+{
+    private readonly List<HandlerRegistration> _registrations = [];
+    private readonly IServiceCollection _services;
+    private readonly object _lock = new();
+
+    public HandlerRegistryService(IServiceCollection services)
+    {
+        _services = services;
+    }
+
+    /// <summary>
+    /// Registers a handler and sets up consumer registration.
+    /// </summary>
+    public void RegisterHandler(HandlerRegistration registration)
+    {
+        lock (_lock)
+        {
+            _registrations.Add(registration);
+
+            // Register the handler in DI if not already registered
+            var handlerInterfaceType = typeof(IMessageHandler<>).MakeGenericType(registration.MessageType);
+            
+            // Add consumer registration for this handler
+            var consumerOptions = new ConsumerOptions
+            {
+                QueueName = registration.QueueName,
+                PrefetchCount = registration.ConsumerConfig?.PrefetchCount ?? 10,
+                MaxConcurrency = registration.ConsumerConfig?.MaxConcurrency ?? 1
+            };
+
+            _services.AddSingleton(new ConsumerRegistration 
+            { 
+                Options = consumerOptions,
+                HandlerType = registration.HandlerType
+            });
+        }
+    }
+
+    /// <summary>
+    /// Gets all registered handlers.
+    /// </summary>
+    public IReadOnlyList<HandlerRegistration> GetRegistrations()
+    {
+        lock (_lock)
+        {
+            return _registrations.AsReadOnly();
         }
     }
 }

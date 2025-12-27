@@ -39,4 +39,13 @@ public interface ITopologyNamingConvention
     /// <param name="sourceQueueName">The source queue name.</param>
     /// <returns>The dead letter queue name.</returns>
     string GetDeadLetterQueueName(string sourceQueueName);
+
+    /// <summary>
+    /// Gets the consumer queue name for a handler type.
+    /// Uses handler-specific naming when service name is provided.
+    /// </summary>
+    /// <param name="handlerType">The handler type.</param>
+    /// <param name="messageType">The message type being handled.</param>
+    /// <returns>The consumer queue name.</returns>
+    string GetConsumerQueueName(Type handlerType, Type messageType) => GetQueueName(messageType);
 }

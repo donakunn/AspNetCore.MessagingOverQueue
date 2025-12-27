@@ -70,6 +70,24 @@ public sealed partial class DefaultTopologyNamingConvention(TopologyNamingOption
         return FormatName($"{_options.DefaultQueuePrefix}{baseName}");
     }
 
+    /// <summary>
+    /// Gets the consumer queue name for a handler type.
+    /// Uses handler-specific naming when service name is provided.
+    /// </summary>
+    /// <param name="handlerType">The handler type.</param>
+    /// <param name="messageType">The message type being handled.</param>
+    /// <returns>The consumer queue name.</returns>
+    public string GetConsumerQueueName(Type handlerType, Type messageType)
+    {
+        ArgumentNullException.ThrowIfNull(handlerType);
+        ArgumentNullException.ThrowIfNull(messageType);
+
+        var messageBaseName = GetBaseName(messageType);
+        var serviceName = _options.ServiceName ?? GetServiceNameFromHandler(handlerType);
+
+        return FormatName($"{serviceName}{_options.QueueSeparator}{messageBaseName}");
+    }
+
     /// <inheritdoc />
     public string GetRoutingKey(Type messageType)
     {
@@ -120,6 +138,31 @@ public sealed partial class DefaultTopologyNamingConvention(TopologyNamingOption
         }
 
         return name;
+    }
+
+    private static string GetServiceNameFromHandler(Type handlerType)
+    {
+        // Try to extract service name from namespace
+        var ns = handlerType.Namespace;
+        if (string.IsNullOrEmpty(ns))
+            return "default";
+
+        var parts = ns.Split('.');
+
+        // Look for first meaningful part before common suffixes
+        for (int i = 0; i < parts.Length; i++)
+        {
+            var part = parts[i];
+            if (!part.Equals("Handlers", StringComparison.OrdinalIgnoreCase) &&
+                !part.Equals("Handler", StringComparison.OrdinalIgnoreCase) &&
+                !part.Equals("Services", StringComparison.OrdinalIgnoreCase) &&
+                !part.Equals("src", StringComparison.OrdinalIgnoreCase))
+            {
+                return part.ToLowerInvariant();
+            }
+        }
+
+        return "default";
     }
 
     private string FormatName(string name)

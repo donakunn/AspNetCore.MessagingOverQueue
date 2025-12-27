@@ -5,21 +5,22 @@ using System.Reflection;
 namespace MessagingOverQueue.src.Topology.Builders;
 
 /// <summary>
-/// Fluent builder for configuring topology.
+/// Fluent builder for configuring topology with handler-based auto-discovery.
+/// Scans assemblies for message handlers and automatically configures topology.
 /// </summary>
 public sealed class TopologyBuilder
 {
-    private readonly List<TopologyDefinition> _definitions = new();
-    private readonly List<Assembly> _assembliesToScan = new();
+    private readonly List<TopologyDefinition> _definitions = [];
+    private readonly List<Assembly> _assembliesToScan = [];
+    private readonly List<HandlerRegistration> _handlerRegistrations = [];
     private TopologyNamingOptions _namingOptions = new();
     private TopologyProviderOptions _providerOptions = new();
     private bool _autoDiscoverEnabled = true;
+    private bool _useHandlerBasedDiscovery = true;
 
     /// <summary>
     /// Configures the naming convention options.
     /// </summary>
-    /// <param name="configure">Action to configure naming options.</param>
-    /// <returns>The builder for chaining.</returns>
     public TopologyBuilder ConfigureNaming(Action<TopologyNamingOptions> configure)
     {
         configure(_namingOptions);
@@ -29,8 +30,6 @@ public sealed class TopologyBuilder
     /// <summary>
     /// Sets the service name used in queue naming.
     /// </summary>
-    /// <param name="serviceName">The service name.</param>
-    /// <returns>The builder for chaining.</returns>
     public TopologyBuilder WithServiceName(string serviceName)
     {
         _namingOptions.ServiceName = serviceName;
@@ -40,8 +39,6 @@ public sealed class TopologyBuilder
     /// <summary>
     /// Configures the topology provider options.
     /// </summary>
-    /// <param name="configure">Action to configure provider options.</param>
-    /// <returns>The builder for chaining.</returns>
     public TopologyBuilder ConfigureProvider(Action<TopologyProviderOptions> configure)
     {
         configure(_providerOptions);
@@ -51,8 +48,6 @@ public sealed class TopologyBuilder
     /// <summary>
     /// Enables or disables dead letter queues by default.
     /// </summary>
-    /// <param name="enabled">Whether to enable dead letter by default.</param>
-    /// <returns>The builder for chaining.</returns>
     public TopologyBuilder WithDeadLetterEnabled(bool enabled = true)
     {
         _providerOptions.EnableDeadLetterByDefault = enabled;
@@ -60,10 +55,8 @@ public sealed class TopologyBuilder
     }
 
     /// <summary>
-    /// Adds an assembly to scan for message types.
+    /// Adds an assembly to scan for message handlers.
     /// </summary>
-    /// <param name="assembly">The assembly to scan.</param>
-    /// <returns>The builder for chaining.</returns>
     public TopologyBuilder ScanAssembly(Assembly assembly)
     {
         _assembliesToScan.Add(assembly);
@@ -71,10 +64,8 @@ public sealed class TopologyBuilder
     }
 
     /// <summary>
-    /// Adds assemblies to scan for message types.
+    /// Adds assemblies to scan for message handlers.
     /// </summary>
-    /// <param name="assemblies">The assemblies to scan.</param>
-    /// <returns>The builder for chaining.</returns>
     public TopologyBuilder ScanAssemblies(params Assembly[] assemblies)
     {
         _assembliesToScan.AddRange(assemblies);
@@ -82,10 +73,8 @@ public sealed class TopologyBuilder
     }
 
     /// <summary>
-    /// Scans the assembly containing the specified type.
+    /// Scans the assembly containing the specified type for message handlers.
     /// </summary>
-    /// <typeparam name="T">A type from the assembly to scan.</typeparam>
-    /// <returns>The builder for chaining.</returns>
     public TopologyBuilder ScanAssemblyContaining<T>()
     {
         _assembliesToScan.Add(typeof(T).Assembly);
@@ -93,9 +82,8 @@ public sealed class TopologyBuilder
     }
 
     /// <summary>
-    /// Disables auto-discovery of message types.
+    /// Disables auto-discovery of message handlers.
     /// </summary>
-    /// <returns>The builder for chaining.</returns>
     public TopologyBuilder DisableAutoDiscovery()
     {
         _autoDiscoverEnabled = false;
@@ -103,11 +91,17 @@ public sealed class TopologyBuilder
     }
 
     /// <summary>
+    /// Uses legacy message-type based discovery instead of handler-based.
+    /// </summary>
+    public TopologyBuilder UseMessageTypeDiscovery()
+    {
+        _useHandlerBasedDiscovery = false;
+        return this;
+    }
+
+    /// <summary>
     /// Adds a topology definition for a message type.
     /// </summary>
-    /// <typeparam name="TMessage">The message type.</typeparam>
-    /// <param name="configure">Action to configure the topology.</param>
-    /// <returns>The builder for chaining.</returns>
     public TopologyBuilder AddTopology<TMessage>(Action<MessageTopologyBuilder<TMessage>> configure)
     {
         var messageBuilder = new MessageTopologyBuilder<TMessage>(_namingOptions);
@@ -119,15 +113,11 @@ public sealed class TopologyBuilder
     /// <summary>
     /// Adds a custom exchange.
     /// </summary>
-    /// <param name="name">The exchange name.</param>
-    /// <param name="configure">Action to configure the exchange.</param>
-    /// <returns>The builder for chaining.</returns>
     public TopologyBuilder AddExchange(string name, Action<ExchangeDefinitionBuilder>? configure = null)
     {
         var builder = new ExchangeDefinitionBuilder().WithName(name);
         configure?.Invoke(builder);
 
-        // Store exchange-only definition (no queue/binding)
         _definitions.Add(new TopologyDefinition
         {
             MessageType = typeof(object),
@@ -160,15 +150,63 @@ public sealed class TopologyBuilder
     public IReadOnlyList<TopologyDefinition> Definitions => _definitions;
 
     /// <summary>
+    /// Gets the handler registrations.
+    /// </summary>
+    public IReadOnlyList<HandlerRegistration> HandlerRegistrations => _handlerRegistrations;
+
+    /// <summary>
     /// Gets whether auto-discovery is enabled.
     /// </summary>
     public bool AutoDiscoverEnabled => _autoDiscoverEnabled;
+
+    /// <summary>
+    /// Gets whether handler-based discovery is enabled.
+    /// </summary>
+    public bool UseHandlerBasedDiscovery => _useHandlerBasedDiscovery;
+
+    /// <summary>
+    /// Internal method to add handler registration.
+    /// </summary>
+    internal void AddHandlerRegistration(HandlerRegistration registration)
+    {
+        _handlerRegistrations.Add(registration);
+    }
+}
+
+/// <summary>
+/// Represents a handler registration with its topology configuration.
+/// </summary>
+public sealed class HandlerRegistration
+{
+    /// <summary>
+    /// The handler type.
+    /// </summary>
+    public Type HandlerType { get; init; } = null!;
+
+    /// <summary>
+    /// The message type this handler handles.
+    /// </summary>
+    public Type MessageType { get; init; } = null!;
+
+    /// <summary>
+    /// The queue name for this handler's consumer.
+    /// </summary>
+    public string QueueName { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Consumer configuration options.
+    /// </summary>
+    public ConsumerQueueInfo? ConsumerConfig { get; init; }
+
+    /// <summary>
+    /// The topology definition for this handler.
+    /// </summary>
+    public TopologyDefinition? TopologyDefinition { get; init; }
 }
 
 /// <summary>
 /// Builder for configuring topology for a specific message type.
 /// </summary>
-/// <typeparam name="TMessage">The message type.</typeparam>
 public sealed class MessageTopologyBuilder<TMessage>
 {
     private readonly TopologyNamingOptions _namingOptions;
@@ -360,72 +398,48 @@ public sealed class ExchangeDefinitionBuilder
     private bool _autoDelete;
     private Dictionary<string, object?>? _arguments;
 
-    /// <summary>
-    /// Sets the exchange name.
-    /// </summary>
     public ExchangeDefinitionBuilder WithName(string name)
     {
         _name = name;
         return this;
     }
 
-    /// <summary>
-    /// Sets the exchange type to direct.
-    /// </summary>
     public ExchangeDefinitionBuilder AsDirect()
     {
         _type = "direct";
         return this;
     }
 
-    /// <summary>
-    /// Sets the exchange type to topic.
-    /// </summary>
     public ExchangeDefinitionBuilder AsTopic()
     {
         _type = "topic";
         return this;
     }
 
-    /// <summary>
-    /// Sets the exchange type to fanout.
-    /// </summary>
     public ExchangeDefinitionBuilder AsFanout()
     {
         _type = "fanout";
         return this;
     }
 
-    /// <summary>
-    /// Sets the exchange type to headers.
-    /// </summary>
     public ExchangeDefinitionBuilder AsHeaders()
     {
         _type = "headers";
         return this;
     }
 
-    /// <summary>
-    /// Makes the exchange durable.
-    /// </summary>
     public ExchangeDefinitionBuilder Durable(bool durable = true)
     {
         _durable = durable;
         return this;
     }
 
-    /// <summary>
-    /// Enables auto-delete.
-    /// </summary>
     public ExchangeDefinitionBuilder AutoDelete(bool autoDelete = true)
     {
         _autoDelete = autoDelete;
         return this;
     }
 
-    /// <summary>
-    /// Adds an argument.
-    /// </summary>
     public ExchangeDefinitionBuilder WithArgument(string key, object value)
     {
         _arguments ??= [];
@@ -458,102 +472,69 @@ public sealed class QueueDefinitionBuilder
     private string? _queueType;
     private Dictionary<string, object>? _arguments;
 
-    /// <summary>
-    /// Sets the queue name.
-    /// </summary>
     public QueueDefinitionBuilder WithName(string name)
     {
         _name = name;
         return this;
     }
 
-    /// <summary>
-    /// Makes the queue durable.
-    /// </summary>
     public QueueDefinitionBuilder Durable(bool durable = true)
     {
         _durable = durable;
         return this;
     }
 
-    /// <summary>
-    /// Makes the queue exclusive.
-    /// </summary>
     public QueueDefinitionBuilder Exclusive(bool exclusive = true)
     {
         _exclusive = exclusive;
         return this;
     }
 
-    /// <summary>
-    /// Enables auto-delete.
-    /// </summary>
     public QueueDefinitionBuilder AutoDelete(bool autoDelete = true)
     {
         _autoDelete = autoDelete;
         return this;
     }
 
-    /// <summary>
-    /// Sets the message TTL.
-    /// </summary>
     public QueueDefinitionBuilder WithMessageTtl(TimeSpan ttl)
     {
         _messageTtl = (int)ttl.TotalMilliseconds;
         return this;
     }
 
-    /// <summary>
-    /// Sets the maximum queue length.
-    /// </summary>
     public QueueDefinitionBuilder WithMaxLength(int maxLength)
     {
         _maxLength = maxLength;
         return this;
     }
 
-    /// <summary>
-    /// Sets the maximum queue size in bytes.
-    /// </summary>
     public QueueDefinitionBuilder WithMaxLengthBytes(long maxBytes)
     {
         _maxLengthBytes = maxBytes;
         return this;
     }
 
-    /// <summary>
-    /// Configures as quorum queue.
-    /// </summary>
     public QueueDefinitionBuilder AsQuorumQueue()
     {
         _queueType = "quorum";
         return this;
     }
 
-    /// <summary>
-    /// Configures as stream queue.
-    /// </summary>
     public QueueDefinitionBuilder AsStreamQueue()
     {
         _queueType = "stream";
         return this;
     }
 
-    /// <summary>
-    /// Configures as lazy queue.
-    /// </summary>
     public QueueDefinitionBuilder AsLazyQueue()
     {
         _queueType = "lazy";
         return this;
     }
 
-    /// <summary>
-    /// Adds an argument.
-    /// </summary>
     public QueueDefinitionBuilder WithArgument(string key, object value)
     {
-        _arguments ??= new Dictionary<string, object>();
+        _arguments ??= [];
         _arguments[key] = value;
         return this;
     }
@@ -581,27 +562,18 @@ public sealed class DeadLetterDefinitionBuilder
     private string? _queueName;
     private string? _routingKey;
 
-    /// <summary>
-    /// Sets the dead letter exchange name.
-    /// </summary>
     public DeadLetterDefinitionBuilder WithExchange(string name)
     {
         _exchangeName = name;
         return this;
     }
 
-    /// <summary>
-    /// Sets the dead letter queue name.
-    /// </summary>
     public DeadLetterDefinitionBuilder WithQueue(string name)
     {
         _queueName = name;
         return this;
     }
 
-    /// <summary>
-    /// Sets the dead letter routing key.
-    /// </summary>
     public DeadLetterDefinitionBuilder WithRoutingKey(string routingKey)
     {
         _routingKey = routingKey;

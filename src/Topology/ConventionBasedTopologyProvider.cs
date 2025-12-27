@@ -127,10 +127,10 @@ public sealed class ConventionBasedTopologyProvider(
             Durable = attr?.Durable ?? _options.DefaultDurable,
             Exclusive = attr?.Exclusive ?? false,
             AutoDelete = attr?.AutoDelete ?? false,
-            MessageTtl = attr?.MessageTtlMs > 0 ? attr.MessageTtlMs : null,
-            MaxLength = attr?.MaxLength > 0 ? attr.MaxLength : null,
-            MaxLengthBytes = attr?.MaxLengthBytes > 0 ? attr.MaxLengthBytes : null,
-            QueueType = attr?.QueueType != QueueType.Classic ? ConvertQueueType(attr!.QueueType) : null,
+            MessageTtl = attr?.MessageTtlMs > 0 ? attr?.MessageTtlMs : null,
+            MaxLength = attr?.MaxLength > 0 ? attr?.MaxLength : null,
+            MaxLengthBytes = attr?.MaxLengthBytes > 0 ? attr?.MaxLengthBytes : null,
+            QueueType = attr?.QueueType != QueueType.Classic ? ConvertQueueType((attr?.QueueType) ?? QueueType.Classic) : null,
             Arguments = arguments.Count > 0 ? arguments : null
         };
     }
