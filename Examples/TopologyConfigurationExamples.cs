@@ -1,5 +1,4 @@
 using MessagingOverQueue.src.Abstractions.Consuming;
-using MessagingOverQueue.src.Abstractions.Messages;
 using MessagingOverQueue.src.DependencyInjection;
 using MessagingOverQueue.src.Topology.Attributes;
 using MessagingOverQueue.src.Topology.DependencyInjection;
@@ -136,7 +135,7 @@ public static class TopologyConfigurationExamples
                     provider.DefaultDurable = true;
                     provider.EnableDeadLetterByDefault = true;
                 }));
-        
+
         // CriticalPaymentHandler uses [ConsumerQueue(QueueType = QueueType.Quorum)]
         // to ensure high availability
     }

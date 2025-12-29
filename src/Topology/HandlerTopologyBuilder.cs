@@ -3,7 +3,6 @@ using MessagingOverQueue.src.Topology.Abstractions;
 using MessagingOverQueue.src.Topology.Attributes;
 using MessagingOverQueue.src.Topology.Builders;
 using MessagingOverQueue.Topology.Conventions;
-using System.Reflection;
 
 namespace MessagingOverQueue.src.Topology;
 
@@ -11,21 +10,15 @@ namespace MessagingOverQueue.src.Topology;
 /// Builds topology definitions from handler topology information.
 /// Combines message-level attributes with handler-level consumer configuration.
 /// </summary>
-public sealed class HandlerTopologyBuilder
+/// <remarks>
+/// Creates a new instance with the specified naming convention and options.
+/// </remarks>
+public sealed class HandlerTopologyBuilder(
+    DefaultTopologyNamingConvention namingConvention,
+    TopologyProviderOptions? options = null)
 {
-    private readonly DefaultTopologyNamingConvention _namingConvention;
-    private readonly TopologyProviderOptions _options;
-
-    /// <summary>
-    /// Creates a new instance with the specified naming convention and options.
-    /// </summary>
-    public HandlerTopologyBuilder(
-        DefaultTopologyNamingConvention namingConvention,
-        TopologyProviderOptions? options = null)
-    {
-        _namingConvention = namingConvention ?? throw new ArgumentNullException(nameof(namingConvention));
-        _options = options ?? new TopologyProviderOptions();
-    }
+    private readonly DefaultTopologyNamingConvention _namingConvention = namingConvention ?? throw new ArgumentNullException(nameof(namingConvention));
+    private readonly TopologyProviderOptions _options = options ?? new TopologyProviderOptions();
 
     /// <summary>
     /// Builds a handler registration from handler topology info.
@@ -134,10 +127,10 @@ public sealed class HandlerTopologyBuilder
         var arguments = new Dictionary<string, object>();
 
         // Set queue type - prefer consumer config over message attribute
-        var queueType = consumerConfig?.QueueType ?? (queueAttr?.QueueType != QueueType.Classic 
-            ? ConvertQueueType(queueAttr?.QueueType ?? QueueType.Classic) 
+        var queueType = consumerConfig?.QueueType ?? (queueAttr?.QueueType != QueueType.Classic
+            ? ConvertQueueType(queueAttr?.QueueType ?? QueueType.Classic)
             : null);
-        
+
         if (queueType != null)
         {
             arguments["x-queue-type"] = queueType;
@@ -170,7 +163,7 @@ public sealed class HandlerTopologyBuilder
     }
 
     private DeadLetterDefinition? BuildDeadLetterDefinition(
-        string sourceQueueName, 
+        string sourceQueueName,
         DeadLetterAttribute? attr,
         ConsumerQueueInfo? consumerConfig)
     {
