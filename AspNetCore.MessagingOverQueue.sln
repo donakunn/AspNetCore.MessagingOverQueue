@@ -5,7 +5,7 @@ VisualStudioVersion = 18.1.11312.151
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MessagingOverQueue.Test", "..\MessagingOverQueue.Test\MessagingOverQueue.Test.csproj", "{84F7CBC6-EF39-4C2B-A80A-E793CCB94388}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MessagingOverQueue", "src\Donakunn.MessagingOverQueue\MessagingOverQueue.csproj", "{E10636EE-8811-185F-E4D3-B76395BDA8C7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Donakunn.MessagingOverQueue", "src\Donakunn.MessagingOverQueue\Donakunn.MessagingOverQueue.csproj", "{E10636EE-8811-185F-E4D3-B76395BDA8C7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -24,5 +24,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3DC9DBA3-7E0E-492F-927E-72DB143C21B1}
 	EndGlobalSection
 EndGlobal
