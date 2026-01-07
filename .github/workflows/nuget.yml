@@ -33,9 +33,8 @@ jobs:
             echo "IS_PRERELEASE=false" >> $GITHUB_OUTPUT
           fi
       - name: Pack
-        run: dotnet pack ./src/Lanz.MapWeaver.Abstraction/Lanz.MapWeaver.Abstraction.csproj -c Release -p:PackageVersion=${{ steps.get_version.outputs.VERSION }} --no-restore --output ./artifacts
-      - name: Pack
-        run: dotnet pack ./src/Lanz.MapWeaver.Generator/Lanz.MapWeaver.Generator.csproj -c Release -p:PackageVersion=${{ steps.get_version.outputs.VERSION }} --no-restore --output ./artifacts
+        run: dotnet pack ./src/Donakunn.MessagingOverQueue\Donakunn.MessagingOverQueue.csproj -c Release -p:PackageVersion=${{ steps.get_version.outputs.VERSION }} --no-restore --output ./artifacts
        
       - name: Push to NuGet
+
         run: dotnet nuget push "./artifacts/*.nupkg" -k "${{ secrets.NUGET_API_KEY }}" -s "https://api.nuget.org/v3/index.json"
