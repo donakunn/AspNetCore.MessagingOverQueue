@@ -1,7 +1,7 @@
-using MessagingOverQueue.src.Abstractions.Messages;
-using MessagingOverQueue.src.Topology.Abstractions;
+using Donakunn.MessagingOverQueue.Abstractions.Messages;
+using Donakunn.MessagingOverQueue.Topology.Abstractions;
 
-namespace MessagingOverQueue.src.Topology;
+namespace Donakunn.MessagingOverQueue.Topology;
 
 /// <summary>
 /// Resolves routing information for messages using the topology provider.

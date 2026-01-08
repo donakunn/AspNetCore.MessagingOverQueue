@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Persistence.Entities;
+namespace Donakunn.MessagingOverQueue.Persistence.Entities;
 
 /// <summary>
 /// Entity representing a message in the outbox.
@@ -18,7 +18,7 @@ public class OutboxMessage
     /// <summary>
     /// The serialized message payload.
     /// </summary>
-    public byte[] Payload { get; set; } = Array.Empty<byte>();
+    public byte[] Payload { get; set; } = [];
 
     /// <summary>
     /// The target exchange.

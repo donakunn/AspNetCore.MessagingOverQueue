@@ -1,11 +1,11 @@
-using MessagingOverQueue.src.Configuration.Options;
+using Donakunn.MessagingOverQueue.Configuration.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Collections.Concurrent;
 
-namespace MessagingOverQueue.src.Connection;
+namespace Donakunn.MessagingOverQueue.Connection;
 
 /// <summary>
 /// Manages a pool of RabbitMQ connections and channels for efficient resource usage.

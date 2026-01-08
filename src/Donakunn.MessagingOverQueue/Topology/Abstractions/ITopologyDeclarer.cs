@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Topology.Abstractions;
+namespace Donakunn.MessagingOverQueue.Topology.Abstractions;
 
 /// <summary>
 /// Declares topology on RabbitMQ broker.

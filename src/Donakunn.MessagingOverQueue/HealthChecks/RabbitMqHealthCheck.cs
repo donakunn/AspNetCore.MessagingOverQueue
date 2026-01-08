@@ -1,8 +1,8 @@
-using MessagingOverQueue.src.Connection;
+using Donakunn.MessagingOverQueue.Connection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 
-namespace MessagingOverQueue.src.HealthChecks;
+namespace Donakunn.MessagingOverQueue.HealthChecks;
 
 /// <summary>
 /// Health check for RabbitMQ connection.

@@ -1,7 +1,7 @@
-using MessagingOverQueue.src.Persistence.Repositories;
+using Donakunn.MessagingOverQueue.Persistence.Repositories;
 using Microsoft.Extensions.Logging;
 
-namespace MessagingOverQueue.src.Consuming.Middleware;
+namespace Donakunn.MessagingOverQueue.Consuming.Middleware;
 
 /// <summary>
 /// Middleware that ensures idempotent message processing.

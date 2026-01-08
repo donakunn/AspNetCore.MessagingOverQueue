@@ -1,6 +1,6 @@
 using Polly.CircuitBreaker;
 
-namespace MessagingOverQueue.src.Resilience.CircuitBreaker;
+namespace Donakunn.MessagingOverQueue.Resilience.CircuitBreaker;
 
 /// <summary>
 /// Event arguments for circuit breaker state changes.

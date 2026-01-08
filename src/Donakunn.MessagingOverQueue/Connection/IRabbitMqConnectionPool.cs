@@ -1,6 +1,6 @@
 using RabbitMQ.Client;
 
-namespace MessagingOverQueue.src.Connection;
+namespace Donakunn.MessagingOverQueue.Connection;
 
 /// <summary>
 /// Interface for managing RabbitMQ connections and channels.

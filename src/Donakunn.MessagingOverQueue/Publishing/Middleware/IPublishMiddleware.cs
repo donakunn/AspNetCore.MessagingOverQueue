@@ -1,6 +1,6 @@
-using MessagingOverQueue.src.Abstractions.Messages;
+using Donakunn.MessagingOverQueue.Abstractions.Messages;
 
-namespace MessagingOverQueue.src.Publishing.Middleware;
+namespace Donakunn.MessagingOverQueue.Publishing.Middleware;
 
 /// <summary>
 /// Middleware for the publish pipeline.
@@ -22,14 +22,14 @@ public interface IPublishMiddleware
 public class PublishContext
 {
     /// <summary>
-    /// The message being published.
+    /// The message being published. May be null for raw publishing (e.g., from OutboxProcessor).
     /// </summary>
-    public IMessage Message { get; init; } = null!;
+    public IMessage? Message { get; init; }
 
     /// <summary>
-    /// The message type.
+    /// The message type. May be null for raw publishing.
     /// </summary>
-    public Type MessageType { get; init; } = null!;
+    public Type? MessageType { get; init; }
 
     /// <summary>
     /// The serialized message body.

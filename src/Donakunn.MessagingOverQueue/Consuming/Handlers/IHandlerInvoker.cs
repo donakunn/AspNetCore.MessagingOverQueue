@@ -1,8 +1,8 @@
-using MessagingOverQueue.src.Abstractions.Consuming;
-using MessagingOverQueue.src.Abstractions.Messages;
+using Donakunn.MessagingOverQueue.Abstractions.Consuming;
+using Donakunn.MessagingOverQueue.Abstractions.Messages;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace MessagingOverQueue.src.Consuming.Handlers;
+namespace Donakunn.MessagingOverQueue.Consuming.Handlers;
 
 /// <summary>
 /// Abstraction for invoking message handlers without reflection at runtime.

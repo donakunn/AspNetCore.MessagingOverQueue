@@ -1,8 +1,8 @@
-using MessagingOverQueue.src.Abstractions.Consuming;
-using MessagingOverQueue.src.Configuration.Options;
-using MessagingOverQueue.src.Connection;
-using MessagingOverQueue.src.Consuming.Handlers;
-using MessagingOverQueue.src.Consuming.Middleware;
+using Donakunn.MessagingOverQueue.Abstractions.Consuming;
+using Donakunn.MessagingOverQueue.Configuration.Options;
+using Donakunn.MessagingOverQueue.Connection;
+using Donakunn.MessagingOverQueue.Consuming.Handlers;
+using Donakunn.MessagingOverQueue.Consuming.Middleware;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;

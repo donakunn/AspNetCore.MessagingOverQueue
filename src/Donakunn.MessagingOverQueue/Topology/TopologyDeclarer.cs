@@ -1,9 +1,9 @@
-using MessagingOverQueue.src.Connection;
-using MessagingOverQueue.src.Topology.Abstractions;
+using Donakunn.MessagingOverQueue.Connection;
+using Donakunn.MessagingOverQueue.Topology.Abstractions;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 
-namespace MessagingOverQueue.src.Topology;
+namespace Donakunn.MessagingOverQueue.Topology;
 
 /// <summary>
 /// Declares topology definitions on the RabbitMQ broker.

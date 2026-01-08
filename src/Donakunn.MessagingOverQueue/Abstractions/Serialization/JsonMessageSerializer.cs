@@ -1,8 +1,8 @@
-using MessagingOverQueue.src.Abstractions.Messages;
+using Donakunn.MessagingOverQueue.Abstractions.Messages;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace MessagingOverQueue.src.Abstractions.Serialization;
+namespace Donakunn.MessagingOverQueue.Abstractions.Serialization;
 
 /// <summary>
 /// JSON-based message serializer using System.Text.Json.

@@ -1,10 +1,10 @@
-using MessagingOverQueue.src.Configuration.Options;
-using MessagingOverQueue.src.Connection;
+using Donakunn.MessagingOverQueue.Configuration.Options;
+using Donakunn.MessagingOverQueue.Connection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace MessagingOverQueue.src.Hosting;
+namespace Donakunn.MessagingOverQueue.Hosting;
 
 /// <summary>
 /// Hosted service that manages RabbitMQ connection lifecycle.

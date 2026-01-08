@@ -1,7 +1,6 @@
-using MessagingOverQueue.src.Abstractions.Messages;
 using System.Collections.Concurrent;
 
-namespace MessagingOverQueue.src.Consuming.Handlers;
+namespace Donakunn.MessagingOverQueue.Consuming.Handlers;
 
 /// <summary>
 /// Registry for handler invokers, providing O(1) lookup by message type.

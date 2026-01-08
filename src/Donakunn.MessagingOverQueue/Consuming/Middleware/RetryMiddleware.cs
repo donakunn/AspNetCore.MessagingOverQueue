@@ -1,9 +1,9 @@
-using MessagingOverQueue.src.Configuration.Options;
-using MessagingOverQueue.src.Resilience;
+using Donakunn.MessagingOverQueue.Configuration.Options;
+using Donakunn.MessagingOverQueue.Resilience;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace MessagingOverQueue.src.Consuming.Middleware;
+namespace Donakunn.MessagingOverQueue.Consuming.Middleware;
 
 /// <summary>
 /// Middleware that applies retry logic to message processing.

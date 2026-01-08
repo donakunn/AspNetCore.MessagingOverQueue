@@ -1,8 +1,8 @@
-using MessagingOverQueue.src.Abstractions.Messages;
-using MessagingOverQueue.src.Abstractions.Publishing;
+using Donakunn.MessagingOverQueue.Abstractions.Messages;
+using Donakunn.MessagingOverQueue.Abstractions.Publishing;
 using Microsoft.Extensions.Logging;
 
-namespace MessagingOverQueue.src.Resilience;
+namespace Donakunn.MessagingOverQueue.Resilience;
 
 /// <summary>
 /// Interface for handling dead letter messages.

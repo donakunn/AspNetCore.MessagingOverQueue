@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Abstractions.Messages;
+namespace Donakunn.MessagingOverQueue.Abstractions.Messages;
 
 /// <summary>
 /// Marker interface for commands. Commands represent intent to change state

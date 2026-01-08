@@ -1,9 +1,9 @@
-using MessagingOverQueue.src.Abstractions.Messages;
-using MessagingOverQueue.src.Topology.Abstractions;
-using MessagingOverQueue.src.Topology.Attributes;
+using Donakunn.MessagingOverQueue.Abstractions.Messages;
+using Donakunn.MessagingOverQueue.Topology.Abstractions;
+using Donakunn.MessagingOverQueue.Topology.Attributes;
 using System.Reflection;
 
-namespace MessagingOverQueue.src.Topology;
+namespace Donakunn.MessagingOverQueue.Topology;
 
 /// <summary>
 /// Convention-based topology provider that combines conventions with attribute overrides.

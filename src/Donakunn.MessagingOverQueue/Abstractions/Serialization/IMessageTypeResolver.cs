@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Abstractions.Serialization;
+namespace Donakunn.MessagingOverQueue.Abstractions.Serialization;
 
 /// <summary>
 /// Resolves message types from type names for deserialization.

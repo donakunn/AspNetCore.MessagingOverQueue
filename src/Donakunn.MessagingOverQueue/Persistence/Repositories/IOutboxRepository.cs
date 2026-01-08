@@ -1,6 +1,6 @@
-using MessagingOverQueue.src.Persistence.Entities;
+using Donakunn.MessagingOverQueue.Persistence.Entities;
 
-namespace MessagingOverQueue.src.Persistence.Repositories;
+namespace Donakunn.MessagingOverQueue.Persistence.Repositories;
 
 /// <summary>
 /// Repository interface for outbox operations.

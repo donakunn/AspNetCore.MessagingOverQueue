@@ -1,10 +1,11 @@
-using MessagingOverQueue.src.Abstractions.Publishing;
-using MessagingOverQueue.src.DependencyInjection;
+using Donakunn.MessagingOverQueue.Abstractions.Publishing;
+using Donakunn.MessagingOverQueue.DependencyInjection;
+using Donakunn.MessagingOverQueue.Topology.DependencyInjection;
 using MessagingOverQueue.Test.Integration.Infrastructure;
 using MessagingOverQueue.Test.Integration.TestDoubles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using static MessagingOverQueue.src.Topology.DependencyInjection.TopologyServiceCollectionExtensions;
+using static Donakunn.MessagingOverQueue.Topology.DependencyInjection.TopologyServiceCollectionExtensions;
 
 namespace MessagingOverQueue.Test.Integration;
 
@@ -64,9 +65,9 @@ public class ConnectionPoolIntegrationTests : IntegrationTestBase
             {
                 for (int i = 0; i < messagesPerPublisher; i++)
                 {
-                    await publisher.PublishAsync(new SimpleTestEvent 
-                    { 
-                        Value = $"P{publisherIndex}-M{i}" 
+                    await publisher.PublishAsync(new SimpleTestEvent
+                    {
+                        Value = $"P{publisherIndex}-M{i}"
                     });
                 }
             }));
@@ -111,7 +112,7 @@ public class ConnectionPoolIntegrationTests : IntegrationTestBase
         {
             await publisher.PublishAsync(new SimpleTestEvent { Value = $"Before-{i}" });
         }
-        
+
         await SimpleTestEventHandler.WaitForCountAsync(5, TimeSpan.FromSeconds(30));
         var firstBatchCount = SimpleTestEventHandler.HandleCount;
 
@@ -143,7 +144,7 @@ public class ConnectionPoolIntegrationTests : IntegrationTestBase
         // Act - Publish different event types
         var simpleTasks = Enumerable.Range(0, 10)
             .Select(i => publisher.PublishAsync(new SimpleTestEvent { Value = $"Simple-{i}" }));
-        
+
         var complexTasks = Enumerable.Range(0, 10)
             .Select(i => publisher.PublishAsync(new ComplexTestEvent { Name = $"Complex-{i}", Count = i }));
 

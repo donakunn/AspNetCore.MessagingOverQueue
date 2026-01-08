@@ -1,28 +1,21 @@
-using MessagingOverQueue.src.Persistence.Entities;
+using Donakunn.MessagingOverQueue.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace MessagingOverQueue.src.Persistence.Repositories;
+namespace Donakunn.MessagingOverQueue.Persistence.Repositories;
 
 /// <summary>
 /// EF Core implementation of the outbox repository.
 /// </summary>
-public class OutboxRepository<TContext> : IOutboxRepository where TContext : DbContext, IOutboxDbContext
+public class OutboxRepository<TContext>(TContext context) : IOutboxRepository where TContext : DbContext, IOutboxDbContext
 {
-    private readonly TContext _context;
-
-    public OutboxRepository(TContext context)
-    {
-        _context = context;
-    }
-
     public async Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
-        await _context.OutboxMessages.AddAsync(message, cancellationToken);
+        await context.OutboxMessages.AddAsync(message, cancellationToken);
     }
 
     public async Task<IReadOnlyList<OutboxMessage>> GetPendingMessagesAsync(int batchSize, CancellationToken cancellationToken = default)
     {
-        return await _context.OutboxMessages
+        return await context.OutboxMessages
             .Where(m => m.Status == OutboxMessageStatus.Pending)
             .OrderBy(m => m.CreatedAt)
             .Take(batchSize)
@@ -36,7 +29,7 @@ public class OutboxRepository<TContext> : IOutboxRepository where TContext : DbC
         var lockExpiresAt = now.Add(lockDuration);
 
         // Get messages that are pending or have expired locks
-        var messages = await _context.OutboxMessages
+        var messages = await context.OutboxMessages
             .Where(m =>
                 (m.Status == OutboxMessageStatus.Pending) ||
                 (m.Status == OutboxMessageStatus.Processing && m.LockExpiresAt < now))
@@ -51,14 +44,14 @@ public class OutboxRepository<TContext> : IOutboxRepository where TContext : DbC
             message.LockExpiresAt = lockExpiresAt;
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
 
         return messages;
     }
 
     public async Task MarkAsPublishedAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
-        var message = await _context.OutboxMessages.FindAsync(new object[] { messageId }, cancellationToken);
+        var message = await context.OutboxMessages.FindAsync(new object[] { messageId }, cancellationToken);
         if (message != null)
         {
             message.Status = OutboxMessageStatus.Published;
@@ -70,7 +63,7 @@ public class OutboxRepository<TContext> : IOutboxRepository where TContext : DbC
 
     public async Task MarkAsFailedAsync(Guid messageId, string error, CancellationToken cancellationToken = default)
     {
-        var message = await _context.OutboxMessages.FindAsync(new object[] { messageId }, cancellationToken);
+        var message = await context.OutboxMessages.FindAsync(new object[] { messageId }, cancellationToken);
         if (message != null)
         {
             message.RetryCount++;
@@ -83,7 +76,7 @@ public class OutboxRepository<TContext> : IOutboxRepository where TContext : DbC
 
     public async Task ReleaseLockAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
-        var message = await _context.OutboxMessages.FindAsync(new object[] { messageId }, cancellationToken);
+        var message = await context.OutboxMessages.FindAsync([messageId], cancellationToken);
         if (message != null)
         {
             message.Status = OutboxMessageStatus.Pending;
@@ -96,14 +89,14 @@ public class OutboxRepository<TContext> : IOutboxRepository where TContext : DbC
     {
         var cutoffDate = DateTime.UtcNow.Subtract(retentionPeriod);
 
-        await _context.OutboxMessages
+        await context.OutboxMessages
             .Where(m => m.Status == OutboxMessageStatus.Published && m.ProcessedAt < cutoffDate)
             .ExecuteDeleteAsync(cancellationToken);
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
     }
 }
 

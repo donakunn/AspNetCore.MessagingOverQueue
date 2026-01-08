@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Configuration.Options;
+namespace Donakunn.MessagingOverQueue.Configuration.Options;
 
 /// <summary>
 /// Configuration options for RabbitMQ connection.

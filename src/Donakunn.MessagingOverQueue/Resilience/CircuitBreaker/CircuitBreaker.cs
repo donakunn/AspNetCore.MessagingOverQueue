@@ -1,7 +1,7 @@
 using Polly;
 using Polly.CircuitBreaker;
 
-namespace MessagingOverQueue.src.Resilience.CircuitBreaker;
+namespace Donakunn.MessagingOverQueue.Resilience.CircuitBreaker;
 
 /// <summary>
 /// Polly-based circuit breaker implementation using Polly v8 with enhanced thread safety and observability.

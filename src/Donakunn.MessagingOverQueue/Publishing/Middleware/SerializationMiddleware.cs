@@ -1,7 +1,7 @@
-using MessagingOverQueue.src.Abstractions.Serialization;
+using Donakunn.MessagingOverQueue.Abstractions.Serialization;
 using Microsoft.Extensions.Logging;
 
-namespace MessagingOverQueue.src.Publishing.Middleware;
+namespace Donakunn.MessagingOverQueue.Publishing.Middleware;
 
 /// <summary>
 /// Middleware that serializes messages before publishing.

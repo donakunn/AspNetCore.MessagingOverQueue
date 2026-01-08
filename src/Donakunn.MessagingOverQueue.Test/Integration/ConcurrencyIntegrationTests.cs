@@ -1,10 +1,11 @@
-using MessagingOverQueue.src.Abstractions.Publishing;
-using MessagingOverQueue.src.DependencyInjection;
+using Donakunn.MessagingOverQueue.Abstractions.Publishing;
+using Donakunn.MessagingOverQueue.DependencyInjection;
+using Donakunn.MessagingOverQueue.Topology.DependencyInjection;
 using MessagingOverQueue.Test.Integration.Infrastructure;
 using MessagingOverQueue.Test.Integration.TestDoubles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using static MessagingOverQueue.src.Topology.DependencyInjection.TopologyServiceCollectionExtensions;
+using static Donakunn.MessagingOverQueue.Topology.DependencyInjection.TopologyServiceCollectionExtensions;
 
 namespace MessagingOverQueue.Test.Integration;
 
@@ -25,13 +26,13 @@ public class ConcurrencyIntegrationTests : IntegrationTestBase
         // Act
         var publishTasks = Enumerable.Range(0, messageCount)
             .Select(i => publisher.PublishAsync(new ConcurrencyTestEvent { Index = i }));
-        
+
         await Task.WhenAll(publishTasks);
         await ConcurrencyTestEventHandler.WaitForCountAsync(messageCount, TimeSpan.FromSeconds(60));
 
         // Assert
         Assert.Equal(messageCount, ConcurrencyTestEventHandler.HandleCount);
-        
+
         // Verify all messages were processed
         var handledIndices = ConcurrencyTestEventHandler.HandledMessages
             .Select(m => m.Index)
@@ -47,7 +48,7 @@ public class ConcurrencyIntegrationTests : IntegrationTestBase
         SimpleTestEventHandler.Reset();
         using var host = await BuildHostWithHandlers();
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
-        
+
         const int publisherCount = 10;
         const int messagesPerPublisher = 20;
         const int totalMessages = publisherCount * messagesPerPublisher;
@@ -58,9 +59,9 @@ public class ConcurrencyIntegrationTests : IntegrationTestBase
             {
                 for (int i = 0; i < messagesPerPublisher; i++)
                 {
-                    await publisher.PublishAsync(new SimpleTestEvent 
-                    { 
-                        Value = $"Publisher-{publisherId}-Msg-{i}" 
+                    await publisher.PublishAsync(new SimpleTestEvent
+                    {
+                        Value = $"Publisher-{publisherId}-Msg-{i}"
                     });
                 }
             }));
@@ -84,7 +85,7 @@ public class ConcurrencyIntegrationTests : IntegrationTestBase
         // Act - Rapid fire publishing
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var tasks = new List<Task>(messageCount);
-        
+
         for (int i = 0; i < messageCount; i++)
         {
             tasks.Add(publisher.PublishAsync(new SimpleTestEvent { Value = $"Stress-{i}" }));
@@ -98,7 +99,7 @@ public class ConcurrencyIntegrationTests : IntegrationTestBase
 
         // Assert
         Assert.Equal(messageCount, SimpleTestEventHandler.HandleCount);
-        
+
         // Log performance metrics
         var messagesPerSecond = messageCount / totalTime.TotalSeconds;
         Assert.True(messagesPerSecond > 1, $"Should process more than 1 msg/sec, got {messagesPerSecond:F2}");
@@ -114,12 +115,12 @@ public class ConcurrencyIntegrationTests : IntegrationTestBase
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
 
         // Act - Send slow events first, then fast events
-        await publisher.PublishAsync(new SlowProcessingEvent 
-        { 
-            Value = "Slow1", 
-            ProcessingTime = TimeSpan.FromSeconds(1) 
+        await publisher.PublishAsync(new SlowProcessingEvent
+        {
+            Value = "Slow1",
+            ProcessingTime = TimeSpan.FromSeconds(1)
         });
-        
+
         // Send fast events immediately after
         for (int i = 0; i < 5; i++)
         {
@@ -182,17 +183,17 @@ public class ConcurrencyIntegrationTests : IntegrationTestBase
 
         // Assert - Verify message content integrity
         Assert.Equal(messageCount, ComplexTestEventHandler.HandleCount);
-        
+
         var handledNames = ComplexTestEventHandler.HandledMessages
             .Select(m => m.Name)
             .OrderBy(n => n)
             .ToList();
-        
+
         var originalNames = originalMessages
             .Select(m => m.Name)
             .OrderBy(n => n)
             .ToList();
-        
+
         Assert.Equal(originalNames, handledNames);
     }
 
@@ -203,7 +204,7 @@ public class ConcurrencyIntegrationTests : IntegrationTestBase
         SimpleTestEventHandler.Reset();
         using var host = await BuildHostWithHandlers();
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
-        
+
         const int burstCount = 3;
         const int messagesPerBurst = 25;
         const int totalMessages = burstCount * messagesPerBurst;
@@ -212,11 +213,11 @@ public class ConcurrencyIntegrationTests : IntegrationTestBase
         for (int burst = 0; burst < burstCount; burst++)
         {
             var burstTasks = Enumerable.Range(0, messagesPerBurst)
-                .Select(i => publisher.PublishAsync(new SimpleTestEvent 
-                { 
-                    Value = $"Burst-{burst}-Msg-{i}" 
+                .Select(i => publisher.PublishAsync(new SimpleTestEvent
+                {
+                    Value = $"Burst-{burst}-Msg-{i}"
                 }));
-            
+
             await Task.WhenAll(burstTasks);
             await Task.Delay(100); // Brief pause between bursts
         }

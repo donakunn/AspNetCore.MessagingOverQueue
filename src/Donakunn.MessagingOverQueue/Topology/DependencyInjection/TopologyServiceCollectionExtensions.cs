@@ -1,17 +1,16 @@
-using MessagingOverQueue.src.Abstractions.Consuming;
-using MessagingOverQueue.src.Abstractions.Serialization;
-using MessagingOverQueue.src.Configuration.Options;
-using MessagingOverQueue.src.Consuming.Handlers;
-using MessagingOverQueue.src.DependencyInjection;
-using MessagingOverQueue.src.Hosting;
-using MessagingOverQueue.src.Topology.Abstractions;
-using MessagingOverQueue.src.Topology.Builders;
-using MessagingOverQueue.Topology.Conventions;
+using Donakunn.MessagingOverQueue.Abstractions.Consuming;
+using Donakunn.MessagingOverQueue.Abstractions.Serialization;
+using Donakunn.MessagingOverQueue.Configuration.Options;
+using Donakunn.MessagingOverQueue.DependencyInjection;
+using Donakunn.MessagingOverQueue.Hosting;
+using Donakunn.MessagingOverQueue.Topology.Abstractions;
+using Donakunn.MessagingOverQueue.Topology.Conventions;
+using Donakunn.MessagingOverQueues.Topology.Builders;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Reflection;
 
-namespace MessagingOverQueue.src.Topology.DependencyInjection;
+namespace Donakunn.MessagingOverQueue.Topology.DependencyInjection;
 
 /// <summary>
 /// Extension methods for configuring topology services with handler-based auto-discovery.

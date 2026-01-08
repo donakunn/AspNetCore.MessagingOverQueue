@@ -1,7 +1,7 @@
-using MessagingOverQueue.src.Topology.Abstractions;
+using Donakunn.MessagingOverQueue.Topology.Abstractions;
 using System.Collections.Concurrent;
 
-namespace MessagingOverQueue.src.Topology;
+namespace Donakunn.MessagingOverQueue.Topology;
 
 /// <summary>
 /// Thread-safe registry for topology definitions.

@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Persistence.Entities;
+namespace Donakunn.MessagingOverQueue.Persistence.Entities;
 
 /// <summary>
 /// Entity representing a processed message in the inbox (for idempotency).

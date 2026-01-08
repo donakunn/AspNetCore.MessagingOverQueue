@@ -1,8 +1,6 @@
-using MessagingOverQueue.src.Abstractions.Consuming;
-using MessagingOverQueue.src.Abstractions.Messages;
-using System.Reflection;
+using Donakunn.MessagingOverQueue.Abstractions.Messages;
 
-namespace MessagingOverQueue.src.Consuming.Handlers;
+namespace Donakunn.MessagingOverQueue.Consuming.Handlers;
 
 /// <summary>
 /// Factory for creating handler invokers using generic type activation.

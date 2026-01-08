@@ -1,8 +1,8 @@
-using MessagingOverQueue.src.Abstractions.Messages;
-using MessagingOverQueue.src.Topology.Abstractions;
+using Donakunn.MessagingOverQueue.Abstractions.Messages;
+using Donakunn.MessagingOverQueue.Topology.Abstractions;
 using System.Text.RegularExpressions;
 
-namespace MessagingOverQueue.Topology.Conventions;
+namespace Donakunn.MessagingOverQueue.Topology.Conventions;
 
 /// <summary>
 /// Default naming convention for RabbitMQ topology.

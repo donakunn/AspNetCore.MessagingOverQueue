@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Topology.Abstractions;
+namespace Donakunn.MessagingOverQueue.Topology.Abstractions;
 
 /// <summary>
 /// Provides topology configuration for a specific message type.

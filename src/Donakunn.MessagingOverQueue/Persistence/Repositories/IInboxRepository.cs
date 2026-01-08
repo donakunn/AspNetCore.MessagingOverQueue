@@ -1,6 +1,6 @@
-using MessagingOverQueue.src.Abstractions.Messages;
+using Donakunn.MessagingOverQueue.Abstractions.Messages;
 
-namespace MessagingOverQueue.src.Persistence.Repositories;
+namespace Donakunn.MessagingOverQueue.Persistence.Repositories;
 
 /// <summary>
 /// Repository interface for inbox operations (idempotency).

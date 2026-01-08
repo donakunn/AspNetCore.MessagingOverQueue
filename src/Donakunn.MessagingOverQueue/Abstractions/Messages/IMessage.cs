@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Abstractions.Messages;
+namespace Donakunn.MessagingOverQueue.Abstractions.Messages;
 
 /// <summary>
 /// Base interface for all messages in the system.

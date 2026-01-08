@@ -1,7 +1,7 @@
-using MessagingOverQueue.src.Abstractions.Consuming;
-using MessagingOverQueue.src.Abstractions.Messages;
+using Donakunn.MessagingOverQueue.Abstractions.Consuming;
+using Donakunn.MessagingOverQueue.Abstractions.Messages;
 
-namespace MessagingOverQueue.src.Consuming.Middleware;
+namespace Donakunn.MessagingOverQueue.Consuming.Middleware;
 
 /// <summary>
 /// Middleware for the consume pipeline.

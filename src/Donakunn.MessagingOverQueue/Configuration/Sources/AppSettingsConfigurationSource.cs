@@ -1,7 +1,7 @@
-using MessagingOverQueue.src.Configuration.Options;
+using Donakunn.MessagingOverQueue.Configuration.Options;
 using Microsoft.Extensions.Configuration;
 
-namespace MessagingOverQueue.src.Configuration.Sources;
+namespace Donakunn.MessagingOverQueue.Configuration.Sources;
 
 /// <summary>
 /// Configuration source that reads from IConfiguration (appsettings.json, environment variables, etc.).

@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Topology.Abstractions;
+namespace Donakunn.MessagingOverQueue.Topology.Abstractions;
 
 /// <summary>
 /// Registry that holds all discovered and configured topology definitions.

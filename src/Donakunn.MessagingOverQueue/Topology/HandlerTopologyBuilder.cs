@@ -1,10 +1,10 @@
-using MessagingOverQueue.src.Abstractions.Messages;
-using MessagingOverQueue.src.Topology.Abstractions;
-using MessagingOverQueue.src.Topology.Attributes;
-using MessagingOverQueue.src.Topology.Builders;
-using MessagingOverQueue.Topology.Conventions;
+using Donakunn.MessagingOverQueue.Abstractions.Messages;
+using Donakunn.MessagingOverQueue.Topology.Abstractions;
+using Donakunn.MessagingOverQueue.Topology.Attributes;
+using Donakunn.MessagingOverQueue.Topology.Conventions;
+using Donakunn.MessagingOverQueues.Topology.Builders;
 
-namespace MessagingOverQueue.src.Topology;
+namespace Donakunn.MessagingOverQueue.Topology;
 
 /// <summary>
 /// Builds topology definitions from handler topology information.

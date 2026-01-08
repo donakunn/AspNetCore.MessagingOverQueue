@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Abstractions.Messages;
+namespace Donakunn.MessagingOverQueue.Abstractions.Messages;
 
 /// <summary>
 /// Abstract base class for all messages providing common functionality.

@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Resilience.CircuitBreaker;
+namespace Donakunn.MessagingOverQueue.Resilience.CircuitBreaker;
 
 /// <summary>
 /// Exception thrown when circuit breaker is open.

@@ -1,7 +1,7 @@
-using MessagingOverQueue.src.Configuration.Builders;
-using MessagingOverQueue.src.Configuration.Options;
+using Donakunn.MessagingOverQueue.Configuration.Builders;
+using Donakunn.MessagingOverQueue.Configuration.Options;
 
-namespace MessagingOverQueue.src.Configuration.Sources;
+namespace Donakunn.MessagingOverQueue.Configuration.Sources;
 
 /// <summary>
 /// Configuration source that uses the fluent builder pattern.

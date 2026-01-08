@@ -1,10 +1,11 @@
-using MessagingOverQueue.src.Abstractions.Publishing;
-using MessagingOverQueue.src.DependencyInjection;
+using Donakunn.MessagingOverQueue.Abstractions.Publishing;
+using Donakunn.MessagingOverQueue.DependencyInjection;
+using Donakunn.MessagingOverQueue.Topology.DependencyInjection;
 using MessagingOverQueue.Test.Integration.Infrastructure;
 using MessagingOverQueue.Test.Integration.TestDoubles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using static MessagingOverQueue.src.Topology.DependencyInjection.TopologyServiceCollectionExtensions;
+using static Donakunn.MessagingOverQueue.Topology.DependencyInjection.TopologyServiceCollectionExtensions;
 
 namespace MessagingOverQueue.Test.Integration;
 

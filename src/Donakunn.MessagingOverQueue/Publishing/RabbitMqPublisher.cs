@@ -1,12 +1,12 @@
-using MessagingOverQueue.src.Abstractions.Messages;
-using MessagingOverQueue.src.Abstractions.Publishing;
-using MessagingOverQueue.src.Connection;
-using MessagingOverQueue.src.Publishing.Middleware;
-using MessagingOverQueue.src.Topology;
+using Donakunn.MessagingOverQueue.Abstractions.Messages;
+using Donakunn.MessagingOverQueue.Abstractions.Publishing;
+using Donakunn.MessagingOverQueue.Connection;
+using Donakunn.MessagingOverQueue.Publishing.Middleware;
+using Donakunn.MessagingOverQueue.Topology;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 
-namespace MessagingOverQueue.src.Publishing;
+namespace Donakunn.MessagingOverQueue.Publishing;
 
 /// <summary>
 /// RabbitMQ implementation of message publisher.
@@ -76,22 +76,34 @@ public class RabbitMqPublisher(
         return PublishAsync(command, string.Empty, queueName, cancellationToken);
     }
 
+    /// <summary>
+    /// Publishes a message directly to RabbitMQ.
+    /// Supports both typed messages (via context.Message) and raw publishing (via context.Body with headers).
+    /// </summary>
     public async Task PublishToRabbitMqAsync(PublishContext context, CancellationToken cancellationToken)
     {
         var channel = await connectionPool.GetChannelAsync(cancellationToken);
         try
         {
+            // Support raw publishing (from OutboxProcessor) where Message may be null
+            var messageId = context.Message?.Id.ToString()
+                ?? context.Headers.GetValueOrDefault("message-id")?.ToString()
+                ?? Guid.NewGuid().ToString();
+
+            var correlationId = context.Message?.CorrelationId
+                ?? context.Headers.GetValueOrDefault("correlation-id")?.ToString();
+
             var properties = new BasicProperties
             {
                 Persistent = context.Persistent,
                 ContentType = context.ContentType,
-                MessageId = context.Message.Id.ToString(),
+                MessageId = messageId,
                 Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds()),
                 Headers = context.Headers.ToDictionary(x => x.Key, x => x.Value)
             };
 
-            if (context.Message.CorrelationId != null)
-                properties.CorrelationId = context.Message.CorrelationId;
+            if (correlationId != null)
+                properties.CorrelationId = correlationId;
 
             if (context.Priority.HasValue)
                 properties.Priority = context.Priority.Value;
@@ -109,7 +121,7 @@ public class RabbitMqPublisher(
 
             logger.LogDebug(
                 "Message {MessageId} published to exchange '{Exchange}' with routing key '{RoutingKey}'",
-                context.Message.Id, context.ExchangeName, context.RoutingKey);
+                messageId, context.ExchangeName, context.RoutingKey);
         }
         finally
         {

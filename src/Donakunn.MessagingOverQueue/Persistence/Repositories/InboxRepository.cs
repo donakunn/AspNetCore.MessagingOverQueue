@@ -1,8 +1,8 @@
-using MessagingOverQueue.src.Abstractions.Messages;
-using MessagingOverQueue.src.Persistence.Entities;
+using Donakunn.MessagingOverQueue.Abstractions.Messages;
+using Donakunn.MessagingOverQueue.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace MessagingOverQueue.src.Persistence.Repositories;
+namespace Donakunn.MessagingOverQueue.Persistence.Repositories;
 
 /// <summary>
 /// EF Core implementation of the inbox repository.

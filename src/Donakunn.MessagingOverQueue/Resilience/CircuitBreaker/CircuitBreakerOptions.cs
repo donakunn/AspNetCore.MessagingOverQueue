@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace MessagingOverQueue.src.Resilience.CircuitBreaker;
+namespace Donakunn.MessagingOverQueue.Resilience.CircuitBreaker;
 
 /// <summary>
 /// Configuration for circuit breaker with validation.

@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Abstractions.Messages;
+namespace Donakunn.MessagingOverQueue.Abstractions.Messages;
 
 /// <summary>
 /// Marker interface for events. Events represent something that has happened

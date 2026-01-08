@@ -1,9 +1,9 @@
-using MessagingOverQueue.src.Configuration.Options;
+using Donakunn.MessagingOverQueue.Configuration.Options;
 using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Retry;
 
-namespace MessagingOverQueue.src.Resilience;
+namespace Donakunn.MessagingOverQueue.Resilience;
 
 /// <summary>
 /// Interface for retry policies.

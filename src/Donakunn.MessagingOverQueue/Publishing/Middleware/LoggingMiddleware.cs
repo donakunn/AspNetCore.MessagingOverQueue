@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 
-namespace MessagingOverQueue.src.Publishing.Middleware;
+namespace Donakunn.MessagingOverQueue.Publishing.Middleware;
 
 /// <summary>
 /// Middleware that logs publishing operations.

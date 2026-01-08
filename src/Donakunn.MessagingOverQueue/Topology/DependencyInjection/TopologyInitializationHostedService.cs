@@ -1,12 +1,11 @@
-using MessagingOverQueue.src.DependencyInjection;
-using MessagingOverQueue.src.Topology.Abstractions;
-using MessagingOverQueue.src.Topology.Builders;
-using MessagingOverQueue.Topology.Conventions;
+using Donakunn.MessagingOverQueue.DependencyInjection;
+using Donakunn.MessagingOverQueue.Topology.Abstractions;
+using Donakunn.MessagingOverQueues.Topology.Builders;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace MessagingOverQueue.src.Topology.DependencyInjection;
+namespace Donakunn.MessagingOverQueue.Topology.DependencyInjection;
 
 /// <summary>
 /// Hosted service that initializes topology on startup.

@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Topology.Attributes;
+namespace Donakunn.MessagingOverQueue.Topology.Attributes;
 
 /// <summary>
 /// Marks a message type for auto-discovery by the topology scanner.

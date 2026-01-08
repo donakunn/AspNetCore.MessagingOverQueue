@@ -1,6 +1,6 @@
-using MessagingOverQueue.src.Abstractions.Messages;
+using Donakunn.MessagingOverQueue.Abstractions.Messages;
 
-namespace MessagingOverQueue.src.Abstractions.Consuming;
+namespace Donakunn.MessagingOverQueue.Abstractions.Consuming;
 
 /// <summary>
 /// Interface for handling messages of a specific type.

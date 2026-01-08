@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Publishing.Middleware;
+namespace Donakunn.MessagingOverQueue.Publishing.Middleware;
 
 /// <summary>
 /// Builds and executes the publish middleware pipeline.

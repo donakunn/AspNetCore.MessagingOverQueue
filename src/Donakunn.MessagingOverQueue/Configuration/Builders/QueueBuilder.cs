@@ -1,6 +1,6 @@
-using MessagingOverQueue.src.Configuration.Options;
+using Donakunn.MessagingOverQueue.Configuration.Options;
 
-namespace MessagingOverQueue.src.Configuration.Builders;
+namespace Donakunn.MessagingOverQueue.Configuration.Builders;
 
 /// <summary>
 /// Fluent builder for configuring queues.

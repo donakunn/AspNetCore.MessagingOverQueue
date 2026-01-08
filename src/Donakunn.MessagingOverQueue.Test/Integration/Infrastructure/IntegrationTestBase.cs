@@ -1,11 +1,12 @@
-using MessagingOverQueue.src.DependencyInjection;
+using Donakunn.MessagingOverQueue.DependencyInjection;
+using Donakunn.MessagingOverQueue.Topology.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Testcontainers.MsSql;
 using Testcontainers.RabbitMq;
-using static MessagingOverQueue.src.Topology.DependencyInjection.TopologyServiceCollectionExtensions;
+using static Donakunn.MessagingOverQueue.Topology.DependencyInjection.TopologyServiceCollectionExtensions;
 
 namespace MessagingOverQueue.Test.Integration.Infrastructure;
 

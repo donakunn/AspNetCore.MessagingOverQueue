@@ -1,7 +1,7 @@
-using MessagingOverQueue.src.Persistence.Entities;
+using Donakunn.MessagingOverQueue.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace MessagingOverQueue.src.Persistence;
+namespace Donakunn.MessagingOverQueue.Persistence;
 
 /// <summary>
 /// Interface for DbContext that supports the outbox pattern.

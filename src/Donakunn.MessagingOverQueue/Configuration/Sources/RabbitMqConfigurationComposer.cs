@@ -1,6 +1,6 @@
-using MessagingOverQueue.src.Configuration.Options;
+using Donakunn.MessagingOverQueue.Configuration.Options;
 
-namespace MessagingOverQueue.src.Configuration.Sources;
+namespace Donakunn.MessagingOverQueue.Configuration.Sources;
 
 /// <summary>
 /// Composes multiple configuration sources into a single configuration.

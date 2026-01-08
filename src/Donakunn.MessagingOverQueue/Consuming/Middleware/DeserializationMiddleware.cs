@@ -1,8 +1,8 @@
-using MessagingOverQueue.src.Abstractions.Messages;
-using MessagingOverQueue.src.Abstractions.Serialization;
+using Donakunn.MessagingOverQueue.Abstractions.Messages;
+using Donakunn.MessagingOverQueue.Abstractions.Serialization;
 using Microsoft.Extensions.Logging;
 
-namespace MessagingOverQueue.src.Consuming.Middleware;
+namespace Donakunn.MessagingOverQueue.Consuming.Middleware;
 
 /// <summary>
 /// Middleware that deserializes incoming messages.

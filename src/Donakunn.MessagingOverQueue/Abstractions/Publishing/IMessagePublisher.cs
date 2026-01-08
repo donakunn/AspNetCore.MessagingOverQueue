@@ -1,6 +1,6 @@
-using MessagingOverQueue.src.Abstractions.Messages;
+using Donakunn.MessagingOverQueue.Abstractions.Messages;
 
-namespace MessagingOverQueue.src.Abstractions.Publishing;
+namespace Donakunn.MessagingOverQueue.Abstractions.Publishing;
 
 /// <summary>
 /// Interface for publishing messages to RabbitMQ.

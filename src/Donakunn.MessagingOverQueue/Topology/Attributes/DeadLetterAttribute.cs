@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Topology.Attributes;
+namespace Donakunn.MessagingOverQueue.Topology.Attributes;
 
 /// <summary>
 /// Configures dead letter handling for a message type.

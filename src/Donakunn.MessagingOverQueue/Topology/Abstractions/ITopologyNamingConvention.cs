@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Topology.Abstractions;
+namespace Donakunn.MessagingOverQueue.Topology.Abstractions;
 
 /// <summary>
 /// Defines naming conventions for RabbitMQ topology.

@@ -1,3 +1,4 @@
+using Donakunn.MessagingOverQueue.Abstractions.Serialization;
 using System.Collections.Concurrent;
 
 namespace MessagingOverQueue.src.Abstractions.Serialization;

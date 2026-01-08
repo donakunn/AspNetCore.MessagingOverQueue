@@ -1,42 +1,29 @@
-namespace MessagingOverQueue.src.Abstractions.Consuming;
+namespace Donakunn.MessagingOverQueue.Abstractions.Consuming;
 
 /// <summary>
 /// Default implementation of IMessageContext.
 /// </summary>
-public class MessageContext : IMessageContext
+public class MessageContext(
+    Guid messageId,
+    string queueName,
+    string? correlationId = null,
+    string? causationId = null,
+    string? exchangeName = null,
+    string? routingKey = null,
+    IReadOnlyDictionary<string, object>? headers = null,
+    int deliveryCount = 1) : IMessageContext
 {
     private readonly Dictionary<string, object> _data = new();
 
-    public MessageContext(
-        Guid messageId,
-        string queueName,
-        string? correlationId = null,
-        string? causationId = null,
-        string? exchangeName = null,
-        string? routingKey = null,
-        IReadOnlyDictionary<string, object>? headers = null,
-        int deliveryCount = 1)
-    {
-        MessageId = messageId;
-        QueueName = queueName;
-        CorrelationId = correlationId;
-        CausationId = causationId;
-        ExchangeName = exchangeName;
-        RoutingKey = routingKey;
-        Headers = headers ?? new Dictionary<string, object>();
-        DeliveryCount = deliveryCount;
-        ReceivedAt = DateTime.UtcNow;
-    }
-
-    public Guid MessageId { get; }
-    public string? CorrelationId { get; }
-    public string? CausationId { get; }
-    public string QueueName { get; }
-    public string? ExchangeName { get; }
-    public string? RoutingKey { get; }
-    public IReadOnlyDictionary<string, object> Headers { get; }
-    public int DeliveryCount { get; }
-    public DateTime ReceivedAt { get; }
+    public Guid MessageId { get; } = messageId;
+    public string? CorrelationId { get; } = correlationId;
+    public string? CausationId { get; } = causationId;
+    public string QueueName { get; } = queueName;
+    public string? ExchangeName { get; } = exchangeName;
+    public string? RoutingKey { get; } = routingKey;
+    public IReadOnlyDictionary<string, object> Headers { get; } = headers ?? new Dictionary<string, object>();
+    public int DeliveryCount { get; } = deliveryCount;
+    public DateTime ReceivedAt { get; } = DateTime.UtcNow;
 
     public void SetData<T>(string key, T value)
     {

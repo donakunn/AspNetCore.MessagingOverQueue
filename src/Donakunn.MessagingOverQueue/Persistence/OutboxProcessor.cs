@@ -1,20 +1,21 @@
-using MessagingOverQueue.src.Abstractions.Publishing;
-using MessagingOverQueue.src.Configuration.Options;
-using MessagingOverQueue.src.Persistence.Entities;
-using MessagingOverQueue.src.Persistence.Repositories;
-using MessagingOverQueue.src.Publishing;
+using Donakunn.MessagingOverQueue.Abstractions.Publishing;
+using Donakunn.MessagingOverQueue.Configuration.Options;
+using Donakunn.MessagingOverQueue.Persistence.Entities;
+using Donakunn.MessagingOverQueue.Persistence.Repositories;
+using Donakunn.MessagingOverQueue.Publishing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
 
-namespace MessagingOverQueue.src.Persistence;
+namespace Donakunn.MessagingOverQueue.Persistence;
 
 /// <summary>
 /// Background service that processes messages from the outbox.
 /// </summary>
 public class OutboxProcessor(
-    IOutboxRepository repository,
+    IServiceScopeFactory scopeFactory,
     IMessagePublisher publisher,
     IOptions<OutboxOptions> options,
     ILogger<OutboxProcessor> logger) : BackgroundService
@@ -67,6 +68,9 @@ public class OutboxProcessor(
 
     private async Task ProcessBatchAsync(CancellationToken cancellationToken)
     {
+        using var scope = scopeFactory.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
+
         var messages = await repository.AcquireLockAsync(
             _options.BatchSize,
             _options.LockDuration,
@@ -82,13 +86,13 @@ public class OutboxProcessor(
             if (cancellationToken.IsCancellationRequested)
                 break;
 
-            await ProcessMessageAsync(message, cancellationToken);
+            await ProcessMessageAsync(repository, message, cancellationToken);
         }
 
         await repository.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task ProcessMessageAsync(OutboxMessage message, CancellationToken cancellationToken)
+    private async Task ProcessMessageAsync(IOutboxRepository repository, OutboxMessage message, CancellationToken cancellationToken)
     {
         try
         {
@@ -177,6 +181,8 @@ public class OutboxProcessor(
     {
         try
         {
+            using var scope = scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
             await repository.CleanupAsync(_options.RetentionPeriod, cancellationToken);
         }
         catch (Exception ex)

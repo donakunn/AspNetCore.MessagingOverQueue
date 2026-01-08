@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Consuming.Middleware;
+namespace Donakunn.MessagingOverQueue.Consuming.Middleware;
 
 /// <summary>
 /// Builds and executes the consume middleware pipeline.

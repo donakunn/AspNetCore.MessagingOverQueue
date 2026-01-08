@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Abstractions.Consuming;
+namespace Donakunn.MessagingOverQueue.Abstractions.Consuming;
 
 /// <summary>
 /// Interface for consuming messages from RabbitMQ.

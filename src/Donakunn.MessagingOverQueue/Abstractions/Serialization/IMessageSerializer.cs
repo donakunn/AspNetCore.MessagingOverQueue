@@ -1,6 +1,6 @@
-using MessagingOverQueue.src.Abstractions.Messages;
+using Donakunn.MessagingOverQueue.Abstractions.Messages;
 
-namespace MessagingOverQueue.src.Abstractions.Serialization;
+namespace Donakunn.MessagingOverQueue.Abstractions.Serialization;
 
 /// <summary>
 /// Interface for message serialization and deserialization.

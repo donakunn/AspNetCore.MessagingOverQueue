@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.src.Topology.Attributes;
+namespace Donakunn.MessagingOverQueue.Topology.Attributes;
 
 /// <summary>
 /// Specifies the exchange configuration for a message type.
