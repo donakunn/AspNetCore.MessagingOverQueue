@@ -80,7 +80,6 @@ public sealed class ConsumerHostedService(
     {
         var connectionPool = serviceProvider.GetRequiredService<IRabbitMqConnectionPool>();
         var handlerInvokerRegistry = serviceProvider.GetRequiredService<IHandlerInvokerRegistry>();
-        var middlewares = serviceProvider.GetServices<IConsumeMiddleware>();
         var consumerLogger = serviceProvider.GetRequiredService<ILogger<RabbitMqConsumer>>();
 
         return new RabbitMqConsumer(
@@ -88,7 +87,6 @@ public sealed class ConsumerHostedService(
             serviceProvider,
             handlerInvokerRegistry,
             registration.Options,
-            middlewares,
             consumerLogger);
     }
 

@@ -130,25 +130,27 @@ public class ProcessOrderCommand : Command
 /// </summary>
 public class SimpleTestEventHandler : IMessageHandler<SimpleTestEvent>
 {
-    private static readonly HandlerCounter Counter = new();
-    private static readonly MessageCollector<SimpleTestEvent> Collector = new();
+    private const string HandlerKey = nameof(SimpleTestEventHandler);
 
-    public static int HandleCount => Counter.Count;
-    public static IReadOnlyCollection<SimpleTestEvent> HandledMessages => Collector.Messages;
+    public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
+    public static IReadOnlyCollection<SimpleTestEvent> HandledMessages => 
+        TestExecutionContextAccessor.GetRequired().GetCollector<SimpleTestEvent>(HandlerKey).Messages;
 
     public static void Reset()
     {
-        Counter.Reset();
-        Collector.Clear();
+        var context = TestExecutionContextAccessor.GetRequired();
+        context.GetCounter(HandlerKey).Reset();
+        context.GetCollector<SimpleTestEvent>(HandlerKey).Clear();
     }
 
     public static Task WaitForCountAsync(int expected, TimeSpan timeout)
-        => Counter.WaitForCountAsync(expected, timeout);
+        => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).WaitForCountAsync(expected, timeout);
 
     public Task HandleAsync(SimpleTestEvent message, IMessageContext context, CancellationToken cancellationToken)
     {
-        Counter.Increment();
-        Collector.Add(message);
+        var testContext = TestExecutionContextAccessor.GetRequired();
+        testContext.GetCounter(HandlerKey).Increment();
+        testContext.GetCollector<SimpleTestEvent>(HandlerKey).Add(message);
         return Task.CompletedTask;
     }
 }
@@ -158,26 +160,28 @@ public class SimpleTestEventHandler : IMessageHandler<SimpleTestEvent>
 /// </summary>
 public class ComplexTestEventHandler : IMessageHandler<ComplexTestEvent>
 {
-    private static readonly HandlerCounter Counter = new();
-    private static readonly MessageCollector<ComplexTestEvent> Collector = new();
+    private const string HandlerKey = nameof(ComplexTestEventHandler);
 
-    public static int HandleCount => Counter.Count;
-    public static IReadOnlyCollection<ComplexTestEvent> HandledMessages => Collector.Messages;
+    public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
+    public static IReadOnlyCollection<ComplexTestEvent> HandledMessages => 
+        TestExecutionContextAccessor.GetRequired().GetCollector<ComplexTestEvent>(HandlerKey).Messages;
 
     public static void Reset()
     {
-        Counter.Reset();
-        Collector.Clear();
+        var context = TestExecutionContextAccessor.GetRequired();
+        context.GetCounter(HandlerKey).Reset();
+        context.GetCollector<ComplexTestEvent>(HandlerKey).Clear();
     }
 
     public static Task WaitForCountAsync(int expected, TimeSpan timeout)
-        => Counter.WaitForCountAsync(expected, timeout);
+        => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).WaitForCountAsync(expected, timeout);
 
     public Task HandleAsync(ComplexTestEvent message, IMessageContext context, CancellationToken cancellationToken)
     {
-        Counter.Increment();
+        var testContext = TestExecutionContextAccessor.GetRequired();
+        testContext.GetCounter(HandlerKey).Increment();
         message.ProcessedAt = DateTime.UtcNow;
-        Collector.Add(message);
+        testContext.GetCollector<ComplexTestEvent>(HandlerKey).Add(message);
         return Task.CompletedTask;
     }
 }
@@ -187,23 +191,25 @@ public class ComplexTestEventHandler : IMessageHandler<ComplexTestEvent>
 /// </summary>
 public class SlowProcessingEventHandler : IMessageHandler<SlowProcessingEvent>
 {
-    private static readonly HandlerCounter Counter = new();
-    private static readonly MessageCollector<SlowProcessingEvent> Collector = new();
+    private const string HandlerKey = nameof(SlowProcessingEventHandler);
 
-    public static int HandleCount => Counter.Count;
-    public static IReadOnlyCollection<SlowProcessingEvent> HandledMessages => Collector.Messages;
+    public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
+    public static IReadOnlyCollection<SlowProcessingEvent> HandledMessages => 
+        TestExecutionContextAccessor.GetRequired().GetCollector<SlowProcessingEvent>(HandlerKey).Messages;
 
     public static void Reset()
     {
-        Counter.Reset();
-        Collector.Clear();
+        var context = TestExecutionContextAccessor.GetRequired();
+        context.GetCounter(HandlerKey).Reset();
+        context.GetCollector<SlowProcessingEvent>(HandlerKey).Clear();
     }
 
     public async Task HandleAsync(SlowProcessingEvent message, IMessageContext context, CancellationToken cancellationToken)
     {
         await Task.Delay(message.ProcessingTime, cancellationToken);
-        Counter.Increment();
-        Collector.Add(message);
+        var testContext = TestExecutionContextAccessor.GetRequired();
+        testContext.GetCounter(HandlerKey).Increment();
+        testContext.GetCollector<SlowProcessingEvent>(HandlerKey).Add(message);
     }
 }
 
@@ -212,30 +218,32 @@ public class SlowProcessingEventHandler : IMessageHandler<SlowProcessingEvent>
 /// </summary>
 public class FailingEventHandler : IMessageHandler<FailingEvent>
 {
-    private static readonly HandlerCounter Counter = new();
-    private static readonly HandlerCounter FailureCounter = new();
-    private static readonly ExceptionCollector Exceptions = new();
+    private const string HandlerKey = nameof(FailingEventHandler);
+    private const string FailureCountKey = nameof(FailingEventHandler) + "_FailureCount";
 
-    public static int HandleCount => Counter.Count;
-    public static int FailureCount => FailureCounter.Count;
-    public static IReadOnlyCollection<Exception> ThrownExceptions => Exceptions.Exceptions;
+    public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
+    public static int FailureCount => TestExecutionContextAccessor.GetRequired().GetCounter(FailureCountKey).Count;
+    public static IReadOnlyCollection<Exception> ThrownExceptions => 
+        TestExecutionContextAccessor.GetRequired().GetExceptionCollector(HandlerKey).Exceptions;
 
     public static void Reset()
     {
-        Counter.Reset();
-        FailureCounter.Reset();
-        Exceptions.Clear();
+        var context = TestExecutionContextAccessor.GetRequired();
+        context.GetCounter(HandlerKey).Reset();
+        context.GetCounter(FailureCountKey).Reset();
+        context.GetExceptionCollector(HandlerKey).Clear();
     }
 
     public Task HandleAsync(FailingEvent message, IMessageContext context, CancellationToken cancellationToken)
     {
-        Counter.Increment();
+        var testContext = TestExecutionContextAccessor.GetRequired();
+        testContext.GetCounter(HandlerKey).Increment();
 
         if (message.ShouldFail)
         {
-            FailureCounter.Increment();
+            testContext.GetCounter(FailureCountKey).Increment();
             var ex = new InvalidOperationException(message.FailureMessage);
-            Exceptions.Add(ex);
+            testContext.GetExceptionCollector(HandlerKey).Add(ex);
             throw ex;
         }
 
@@ -248,49 +256,51 @@ public class FailingEventHandler : IMessageHandler<FailingEvent>
 /// </summary>
 public class ConcurrencyTestEventHandler : IMessageHandler<ConcurrencyTestEvent>
 {
-    private static readonly HandlerCounter Counter = new();
-    private static readonly MessageCollector<ConcurrencyTestEvent> Collector = new();
-    private static readonly object Lock = new();
-    private static int _maxConcurrent;
-    private static int _currentConcurrent;
+    private const string HandlerKey = nameof(ConcurrencyTestEventHandler);
+    private const string MaxConcurrentKey = HandlerKey + "_MaxConcurrent";
+    private const string CurrentConcurrentKey = HandlerKey + "_CurrentConcurrent";
 
-    public static int HandleCount => Counter.Count;
-    public static int MaxConcurrentObserved => Volatile.Read(ref _maxConcurrent);
-    public static IReadOnlyCollection<ConcurrencyTestEvent> HandledMessages => Collector.Messages;
+    public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
+    public static int MaxConcurrentObserved => 
+        TestExecutionContextAccessor.GetRequired().GetCustomData<int>(MaxConcurrentKey);
+    public static IReadOnlyCollection<ConcurrencyTestEvent> HandledMessages => 
+        TestExecutionContextAccessor.GetRequired().GetCollector<ConcurrencyTestEvent>(HandlerKey).Messages;
 
     public static void Reset()
     {
-        Counter.Reset();
-        Collector.Clear();
-        _maxConcurrent = 0;
-        _currentConcurrent = 0;
+        var context = TestExecutionContextAccessor.GetRequired();
+        context.GetCounter(HandlerKey).Reset();
+        context.GetCollector<ConcurrencyTestEvent>(HandlerKey).Clear();
+        context.SetCustomData(MaxConcurrentKey, 0);
+        context.SetCustomData(CurrentConcurrentKey, 0);
     }
 
     public static Task WaitForCountAsync(int expected, TimeSpan timeout)
-        => Counter.WaitForCountAsync(expected, timeout);
+        => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).WaitForCountAsync(expected, timeout);
 
     public async Task HandleAsync(ConcurrencyTestEvent message, IMessageContext context, CancellationToken cancellationToken)
     {
-        var concurrent = Interlocked.Increment(ref _currentConcurrent);
+        var testContext = TestExecutionContextAccessor.GetRequired();
+        var currentConcurrent = testContext.GetCustomData<int>(CurrentConcurrentKey) + 1;
+        testContext.SetCustomData(CurrentConcurrentKey, currentConcurrent);
 
-        lock (Lock)
+        var maxConcurrent = testContext.GetCustomData<int>(MaxConcurrentKey);
+        if (currentConcurrent > maxConcurrent)
         {
-            if (concurrent > _maxConcurrent)
-            {
-                _maxConcurrent = concurrent;
-            }
+            testContext.SetCustomData(MaxConcurrentKey, currentConcurrent);
         }
 
         try
         {
             message.ThreadInfo = $"Thread-{Environment.CurrentManagedThreadId}";
             await Task.Delay(50, cancellationToken); // Simulate work
-            Counter.Increment();
-            Collector.Add(message);
+            testContext.GetCounter(HandlerKey).Increment();
+            testContext.GetCollector<ConcurrencyTestEvent>(HandlerKey).Add(message);
         }
         finally
         {
-            Interlocked.Decrement(ref _currentConcurrent);
+            var decremented = testContext.GetCustomData<int>(CurrentConcurrentKey) - 1;
+            testContext.SetCustomData(CurrentConcurrentKey, decremented);
         }
     }
 }
@@ -300,22 +310,24 @@ public class ConcurrencyTestEventHandler : IMessageHandler<ConcurrencyTestEvent>
 /// </summary>
 public class MultiHandlerEventHandlerA : IMessageHandler<MultiHandlerEvent>
 {
-    private static readonly HandlerCounter Counter = new();
-    private static readonly MessageCollector<MultiHandlerEvent> Collector = new();
+    private const string HandlerKey = nameof(MultiHandlerEventHandlerA);
 
-    public static int HandleCount => Counter.Count;
-    public static IReadOnlyCollection<MultiHandlerEvent> HandledMessages => Collector.Messages;
+    public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
+    public static IReadOnlyCollection<MultiHandlerEvent> HandledMessages => 
+        TestExecutionContextAccessor.GetRequired().GetCollector<MultiHandlerEvent>(HandlerKey).Messages;
 
     public static void Reset()
     {
-        Counter.Reset();
-        Collector.Clear();
+        var context = TestExecutionContextAccessor.GetRequired();
+        context.GetCounter(HandlerKey).Reset();
+        context.GetCollector<MultiHandlerEvent>(HandlerKey).Clear();
     }
 
     public Task HandleAsync(MultiHandlerEvent message, IMessageContext context, CancellationToken cancellationToken)
     {
-        Counter.Increment();
-        Collector.Add(message);
+        var testContext = TestExecutionContextAccessor.GetRequired();
+        testContext.GetCounter(HandlerKey).Increment();
+        testContext.GetCollector<MultiHandlerEvent>(HandlerKey).Add(message);
         return Task.CompletedTask;
     }
 }
@@ -325,22 +337,24 @@ public class MultiHandlerEventHandlerA : IMessageHandler<MultiHandlerEvent>
 /// </summary>
 public class MultiHandlerEventHandlerB : IMessageHandler<MultiHandlerEvent>
 {
-    private static readonly HandlerCounter Counter = new();
-    private static readonly MessageCollector<MultiHandlerEvent> Collector = new();
+    private const string HandlerKey = nameof(MultiHandlerEventHandlerB);
 
-    public static int HandleCount => Counter.Count;
-    public static IReadOnlyCollection<MultiHandlerEvent> HandledMessages => Collector.Messages;
+    public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
+    public static IReadOnlyCollection<MultiHandlerEvent> HandledMessages => 
+        TestExecutionContextAccessor.GetRequired().GetCollector<MultiHandlerEvent>(HandlerKey).Messages;
 
     public static void Reset()
     {
-        Counter.Reset();
-        Collector.Clear();
+        var context = TestExecutionContextAccessor.GetRequired();
+        context.GetCounter(HandlerKey).Reset();
+        context.GetCollector<MultiHandlerEvent>(HandlerKey).Clear();
     }
 
     public Task HandleAsync(MultiHandlerEvent message, IMessageContext context, CancellationToken cancellationToken)
     {
-        Counter.Increment();
-        Collector.Add(message);
+        var testContext = TestExecutionContextAccessor.GetRequired();
+        testContext.GetCounter(HandlerKey).Increment();
+        testContext.GetCollector<MultiHandlerEvent>(HandlerKey).Add(message);
         return Task.CompletedTask;
     }
 }
@@ -350,25 +364,27 @@ public class MultiHandlerEventHandlerB : IMessageHandler<MultiHandlerEvent>
 /// </summary>
 public class OrderedEventHandler : IMessageHandler<OrderedEvent>
 {
-    private static readonly HandlerCounter Counter = new();
-    private static readonly MessageCollector<(int Sequence, DateTime ProcessedAt)> OrderCollector = new();
+    private const string HandlerKey = nameof(OrderedEventHandler);
 
-    public static int HandleCount => Counter.Count;
-    public static IReadOnlyCollection<(int Sequence, DateTime ProcessedAt)> ProcessOrder => OrderCollector.Messages;
+    public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
+    public static IReadOnlyCollection<(int Sequence, DateTime ProcessedAt)> ProcessOrder => 
+        TestExecutionContextAccessor.GetRequired().GetCollector<(int Sequence, DateTime ProcessedAt)>(HandlerKey).Messages;
 
     public static void Reset()
     {
-        Counter.Reset();
-        OrderCollector.Clear();
+        var context = TestExecutionContextAccessor.GetRequired();
+        context.GetCounter(HandlerKey).Reset();
+        context.GetCollector<(int Sequence, DateTime ProcessedAt)>(HandlerKey).Clear();
     }
 
     public static Task WaitForCountAsync(int expected, TimeSpan timeout)
-        => Counter.WaitForCountAsync(expected, timeout);
+        => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).WaitForCountAsync(expected, timeout);
 
     public Task HandleAsync(OrderedEvent message, IMessageContext context, CancellationToken cancellationToken)
     {
-        Counter.Increment();
-        OrderCollector.Add((message.Sequence, DateTime.UtcNow));
+        var testContext = TestExecutionContextAccessor.GetRequired();
+        testContext.GetCounter(HandlerKey).Increment();
+        testContext.GetCollector<(int Sequence, DateTime ProcessedAt)>(HandlerKey).Add((message.Sequence, DateTime.UtcNow));
         return Task.CompletedTask;
     }
 }
@@ -378,25 +394,27 @@ public class OrderedEventHandler : IMessageHandler<OrderedEvent>
 /// </summary>
 public class SimpleTestCommandHandler : IMessageHandler<SimpleTestCommand>
 {
-    private static readonly HandlerCounter Counter = new();
-    private static readonly MessageCollector<SimpleTestCommand> Collector = new();
+    private const string HandlerKey = nameof(SimpleTestCommandHandler);
 
-    public static int HandleCount => Counter.Count;
-    public static IReadOnlyCollection<SimpleTestCommand> HandledCommands => Collector.Messages;
+    public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
+    public static IReadOnlyCollection<SimpleTestCommand> HandledCommands => 
+        TestExecutionContextAccessor.GetRequired().GetCollector<SimpleTestCommand>(HandlerKey).Messages;
 
     public static void Reset()
     {
-        Counter.Reset();
-        Collector.Clear();
+        var context = TestExecutionContextAccessor.GetRequired();
+        context.GetCounter(HandlerKey).Reset();
+        context.GetCollector<SimpleTestCommand>(HandlerKey).Clear();
     }
 
     public static Task WaitForCountAsync(int expected, TimeSpan timeout)
-        => Counter.WaitForCountAsync(expected, timeout);
+        => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).WaitForCountAsync(expected, timeout);
 
     public Task HandleAsync(SimpleTestCommand message, IMessageContext context, CancellationToken cancellationToken)
     {
-        Counter.Increment();
-        Collector.Add(message);
+        var testContext = TestExecutionContextAccessor.GetRequired();
+        testContext.GetCounter(HandlerKey).Increment();
+        testContext.GetCollector<SimpleTestCommand>(HandlerKey).Add(message);
         return Task.CompletedTask;
     }
 }
@@ -406,25 +424,27 @@ public class SimpleTestCommandHandler : IMessageHandler<SimpleTestCommand>
 /// </summary>
 public class ProcessOrderCommandHandler : IMessageHandler<ProcessOrderCommand>
 {
-    private static readonly HandlerCounter Counter = new();
-    private static readonly MessageCollector<ProcessOrderCommand> Collector = new();
+    private const string HandlerKey = nameof(ProcessOrderCommandHandler);
 
-    public static int HandleCount => Counter.Count;
-    public static IReadOnlyCollection<ProcessOrderCommand> ProcessedOrders => Collector.Messages;
+    public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
+    public static IReadOnlyCollection<ProcessOrderCommand> ProcessedOrders => 
+        TestExecutionContextAccessor.GetRequired().GetCollector<ProcessOrderCommand>(HandlerKey).Messages;
 
     public static void Reset()
     {
-        Counter.Reset();
-        Collector.Clear();
+        var context = TestExecutionContextAccessor.GetRequired();
+        context.GetCounter(HandlerKey).Reset();
+        context.GetCollector<ProcessOrderCommand>(HandlerKey).Clear();
     }
 
     public static Task WaitForCountAsync(int expected, TimeSpan timeout)
-        => Counter.WaitForCountAsync(expected, timeout);
+        => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).WaitForCountAsync(expected, timeout);
 
     public Task HandleAsync(ProcessOrderCommand message, IMessageContext context, CancellationToken cancellationToken)
     {
-        Counter.Increment();
-        Collector.Add(message);
+        var testContext = TestExecutionContextAccessor.GetRequired();
+        testContext.GetCounter(HandlerKey).Increment();
+        testContext.GetCollector<ProcessOrderCommand>(HandlerKey).Add(message);
         return Task.CompletedTask;
     }
 }
@@ -434,25 +454,27 @@ public class ProcessOrderCommandHandler : IMessageHandler<ProcessOrderCommand>
 /// </summary>
 public class IdempotentTestEventHandler : IMessageHandler<IdempotentTestEvent>
 {
-    private static readonly HandlerCounter Counter = new();
-    private static readonly MessageCollector<IdempotentTestEvent> Collector = new();
+    private const string HandlerKey = nameof(IdempotentTestEventHandler);
 
-    public static int HandleCount => Counter.Count;
-    public static IReadOnlyCollection<IdempotentTestEvent> HandledMessages => Collector.Messages;
+    public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
+    public static IReadOnlyCollection<IdempotentTestEvent> HandledMessages => 
+        TestExecutionContextAccessor.GetRequired().GetCollector<IdempotentTestEvent>(HandlerKey).Messages;
 
     public static void Reset()
     {
-        Counter.Reset();
-        Collector.Clear();
+        var context = TestExecutionContextAccessor.GetRequired();
+        context.GetCounter(HandlerKey).Reset();
+        context.GetCollector<IdempotentTestEvent>(HandlerKey).Clear();
     }
 
     public static Task WaitForCountAsync(int expected, TimeSpan timeout)
-        => Counter.WaitForCountAsync(expected, timeout);
+        => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).WaitForCountAsync(expected, timeout);
 
     public Task HandleAsync(IdempotentTestEvent message, IMessageContext context, CancellationToken cancellationToken)
     {
-        Counter.Increment();
-        Collector.Add(message);
+        var testContext = TestExecutionContextAccessor.GetRequired();
+        testContext.GetCounter(HandlerKey).Increment();
+        testContext.GetCollector<IdempotentTestEvent>(HandlerKey).Add(message);
         return Task.CompletedTask;
     }
 }

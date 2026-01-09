@@ -18,7 +18,6 @@ public class RabbitMqConsumer(
     IServiceProvider serviceProvider,
     IHandlerInvokerRegistry handlerInvokerRegistry,
     ConsumerOptions options,
-    IEnumerable<IConsumeMiddleware> middlewares,
     ILogger<RabbitMqConsumer> logger) : IMessageConsumer
 {
     private IChannel? _channel;
@@ -139,7 +138,11 @@ public class RabbitMqConsumer(
             ContentType = args.BasicProperties.ContentType
         };
 
-        var pipeline = new ConsumePipeline(middlewares, HandleMessageAsync);
+        // Create a scope to resolve middlewares with scoped dependencies
+        using var scope = serviceProvider.CreateScope();
+        var middlewares = scope.ServiceProvider.GetServices<IConsumeMiddleware>();
+        
+        var pipeline = new ConsumePipeline(middlewares, (ctx, ct) => HandleMessageAsync(ctx, ct, scope.ServiceProvider));
         await pipeline.ExecuteAsync(context, cancellationToken);
 
         if (!options.AutoAck && _channel != null)
@@ -155,7 +158,7 @@ public class RabbitMqConsumer(
         }
     }
 
-    private async Task HandleMessageAsync(ConsumeContext context, CancellationToken cancellationToken)
+    private async Task HandleMessageAsync(ConsumeContext context, CancellationToken cancellationToken, IServiceProvider scopedProvider)
     {
         if (context.Message == null || context.MessageType == null)
         {
@@ -172,9 +175,8 @@ public class RabbitMqConsumer(
             return;
         }
 
-        using var scope = serviceProvider.CreateScope();
         await invoker.InvokeAsync(
-            scope.ServiceProvider,
+            scopedProvider,
             context.Message,
             context.MessageContext,
             context.Data,

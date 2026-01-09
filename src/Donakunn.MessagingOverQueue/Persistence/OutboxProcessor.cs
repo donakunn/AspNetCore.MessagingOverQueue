@@ -169,6 +169,7 @@ public class OutboxProcessor(
 
         if (publisher is RabbitMqPublisher directPublisher)
         {
+
             await directPublisher.PublishToRabbitMqAsync(context, cancellationToken);
         }
         else
@@ -182,8 +183,12 @@ public class OutboxProcessor(
         try
         {
             using var scope = scopeFactory.CreateScope();
-            var repository = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
-            await repository.CleanupAsync(_options.RetentionPeriod, cancellationToken);
+
+            var outBoxRepository = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
+            var inboxRepository = scope.ServiceProvider.GetRequiredService<IInboxRepository>();
+
+            await inboxRepository.CleanupAsync(_options.RetentionPeriod, cancellationToken);
+            await outBoxRepository.CleanupAsync(_options.RetentionPeriod, cancellationToken);
         }
         catch (Exception ex)
         {

@@ -13,6 +13,7 @@ namespace MessagingOverQueue.Test.Integration.Infrastructure;
 /// <summary>
 /// Base class for integration tests providing containerized SQL Server and RabbitMQ infrastructure.
 /// Uses xUnit's IAsyncLifetime for proper async setup/teardown.
+/// Includes isolated test execution context to prevent state sharing between parallel tests.
 /// </summary>
 public abstract class IntegrationTestBase : IAsyncLifetime
 {
@@ -21,6 +22,20 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     protected IServiceProvider ServiceProvider { get; private set; } = null!;
     protected string ConnectionString { get; private set; } = string.Empty;
     protected string RabbitMqConnectionString { get; private set; } = string.Empty;
+    
+    private readonly TestExecutionContext _testContext;
+
+    protected IntegrationTestBase()
+    {
+        // Create and set isolated test execution context for this test instance
+        _testContext = new TestExecutionContext();
+        TestExecutionContextAccessor.Current = _testContext;
+    }
+
+    /// <summary>
+    /// Gets the test execution context for this test.
+    /// </summary>
+    protected TestExecutionContext TestContext => _testContext;
 
     /// <summary>
     /// Default timeout for waiting on async operations in tests.
@@ -179,6 +194,10 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         {
             await _rabbitMqContainer.DisposeAsync();
         }
+        
+        // Clean up test execution context
+        _testContext.Reset();
+        TestExecutionContextAccessor.Current = null;
     }
 
     protected virtual async Task OnDisposeAsync()
