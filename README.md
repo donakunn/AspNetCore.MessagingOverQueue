@@ -4,8 +4,6 @@
 [![.NET 10](https://img.shields.io/badge/.NET-10-purple)](https://dotnet.microsoft.com/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green)](LICENSE)
 
-> **Repository**: [https://github.com/donakunn/Donakunn.MessagingOverQueue](https://github.com/donakunn/Donakunn.MessagingOverQueue)
-
 A robust, high-performance asynchronous messaging library for .NET 10 built on RabbitMQ with automatic handler-based topology discovery and SOLID design principles.
 
 ## Introduction
