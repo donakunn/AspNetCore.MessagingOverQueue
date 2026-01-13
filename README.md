@@ -1,4 +1,4 @@
-# MessagingOverQueue - RabbitMQ Messaging Library for .NET
+# MessagingOverQueue - Multi-Provider Messaging Library for .NET
 
 [![GitHub Repository](https://img.shields.io/badge/GitHub-donakunn%2FDonakunn.MessagingOverQueue-blue?logo=github)](https://github.com/donakunn/Donakunn.MessagingOverQueue)
 [![.NET 10](https://img.shields.io/badge/.NET-10-purple)](https://dotnet.microsoft.com/)
@@ -6,24 +6,33 @@
 
 > **Repository**: [https://github.com/donakunn/Donakunn.MessagingOverQueue](https://github.com/donakunn/Donakunn.MessagingOverQueue)
 
-A robust, high-performance asynchronous messaging library for .NET 10 built on RabbitMQ with automatic handler-based topology discovery and SOLID design principles.
+A robust, high-performance asynchronous messaging library for .NET 10 with **pluggable messaging providers** (RabbitMQ and Redis Streams), automatic handler-based topology discovery, and SOLID design principles.
 
 ## Introduction
 
-**MessagingOverQueue** is a production-ready RabbitMQ messaging library designed to eliminate boilerplate code and streamline message-driven architecture in .NET applications. Built with modern .NET best practices, it provides a developer-friendly abstraction over RabbitMQ while maintaining full control and flexibility.
+**MessagingOverQueue** is a production-ready messaging library designed to eliminate boilerplate code and streamline message-driven architecture in .NET applications. Built with modern .NET best practices, it provides a developer-friendly abstraction over multiple messaging backends while maintaining full control and flexibility.
+
+### Supported Messaging Providers
+
+| Provider | Package | Use Case |
+|----------|---------|----------|
+| **RabbitMQ** | `Donakunn.MessagingOverQueue` | Traditional message broker with advanced routing, exchanges, and queues |
+| **Redis Streams** | `Donakunn.MessagingOverQueue.RedisStreams` | High-performance streaming with consumer groups, ideal for existing Redis infrastructure |
 
 ### Why MessagingOverQueue?
 
-Traditional RabbitMQ integration requires significant boilerplate: manual exchange and queue declarations, binding configuration, consumer setup, handler registration, and serialization plumbing. MessagingOverQueue eliminates this complexity through **intelligent handler-based auto-discovery** - simply implement `IMessageHandler<T>`, and the library automatically:
+Traditional messaging integration requires significant boilerplate: manual exchange and queue declarations, binding configuration, consumer setup, handler registration, and serialization plumbing. MessagingOverQueue eliminates this complexity through **intelligent handler-based auto-discovery** - simply implement `IMessageHandler<T>`, and the library automatically:
 
 - **Discovers your handlers** at startup via assembly scanning
-- **Creates RabbitMQ topology** (exchanges, queues, bindings) based on conventions or attributes
+- **Creates messaging topology** (exchanges/streams, queues/consumer groups, bindings) based on conventions or attributes
 - **Registers handlers in DI** with scoped lifetime management
 - **Sets up consumers** with optimized concurrency and prefetch settings
 - **Dispatches messages** using reflection-free, strongly-typed handler invocation
 - **Manages connections** with pooling and automatic recovery
 
 ### Architecture Highlights
+
+**Provider Abstraction**: Clean `IMessagingProvider` interface allows seamless switching between RabbitMQ and Redis Streams without changing application code.
 
 **Reflection-Free Handler Dispatch**: Unlike traditional approaches that use reflection for every message, MessagingOverQueue employs a **handler invoker registry** pattern. Generic `HandlerInvoker<TMessage>` instances are created once at startup and cached in a `ConcurrentDictionary`, providing O(1) lookup and zero reflection overhead during message processing.
 
@@ -47,23 +56,32 @@ Traditional RabbitMQ integration requires significant boilerplate: manual exchan
 
 ## Features
 
-- 🚀 **Handler-Based Auto-Discovery**: Automatically configure topology by scanning for message handlers - exchanges, queues, bindings, and consumers are all set up automatically
+- 🚀 **Handler-Based Auto-Discovery**: Automatically configure topology by scanning for message handlers - exchanges/streams, queues/consumer groups, bindings are all set up automatically
+- 🔌 **Multiple Providers**: Choose between RabbitMQ and Redis Streams based on your infrastructure
 - ⚡ **Reflection-Free Dispatch**: Handler invoker registry eliminates reflection overhead during message processing
 - 🎯 **Clean Abstractions**: Simple interfaces for publishing and consuming messages (`ICommand`, `IEvent`, `IQuery`)
 - ⚙️ **Flexible Configuration**: Multiple configuration sources - Fluent API, appsettings.json, .NET Aspire, or custom sources
 - 🔄 **Provider-Based Outbox Pattern**: Reliable message delivery with pluggable database providers (SQL Server, with extensibility for others)
 - 🛡️ **Resilience**: Built-in retry policies, circuit breakers, and dead letter handling
 - 🔌 **Middleware Pipeline**: Extensible pipeline for both publishing and consuming
-- 💚 **Health Checks**: Built-in ASP.NET Core health check support
+- 💚 **Health Checks**: Built-in ASP.NET Core health check support for both providers
 - 💉 **Dependency Injection**: First-class DI support with Microsoft.Extensions.DependencyInjection
-- 🔗 **Connection Pooling**: Optimized channel management with automatic recovery
-- 📊 **Multiple Queue Types**: Support for Classic, Quorum, Stream, and Lazy queues
+- 🔗 **Connection Pooling**: Optimized channel/connection management with automatic recovery
+- 📊 **Multiple Queue Types**: Support for Classic, Quorum, Stream, and Lazy queues (RabbitMQ) or Consumer Groups (Redis)
 - 🗄️ **No EF Core Dependency**: Uses high-performance ADO.NET for database operations
 
 ## Installation
 
+### RabbitMQ Provider (Core Package)
+
 ```bash
-dotnet add package MessagingOverQueue
+dotnet add package Donakunn.MessagingOverQueue
+```
+
+### Redis Streams Provider
+
+```bash
+dotnet add package Donakunn.MessagingOverQueue.RedisStreams
 ```
 
 ## Quick Start
@@ -116,9 +134,11 @@ public class OrderCreatedHandler : IMessageHandler<OrderCreatedEvent>
 
 ### 3. Configure Services (Handler-Based Auto-Discovery)
 
+#### Using RabbitMQ
+
 ```csharp
-using MessagingOverQueue.DependencyInjection;
-using MessagingOverQueue.Topology.DependencyInjection;
+using Donakunn.MessagingOverQueue.DependencyInjection;
+using Donakunn.MessagingOverQueue.Topology.DependencyInjection;
 
 services.AddRabbitMqMessaging(builder.Configuration)
     .AddTopology(topology => topology
@@ -126,13 +146,33 @@ services.AddRabbitMqMessaging(builder.Configuration)
         .ScanAssemblyContaining<OrderCreatedHandler>());
 ```
 
+#### Using Redis Streams
+
+```csharp
+using Donakunn.MessagingOverQueue.RedisStreams.DependencyInjection;
+using Donakunn.MessagingOverQueue.Topology.DependencyInjection;
+
+services.AddRedisStreamsMessaging(options => options
+    .UseConnectionString("localhost:6379")
+    .WithStreamPrefix("myapp")
+    .ConfigureConsumer(consumer => consumer
+        .WithBatchSize(100)
+        .WithMaxConcurrency(10))
+    .WithTimeBasedRetention(TimeSpan.FromDays(7))
+    .WithDeadLetterPerConsumerGroup()
+    .WithMaxDeliveryAttempts(5))
+    .AddTopology(topology => topology
+        .WithServiceName("order-service")
+        .ScanAssemblyContaining<OrderCreatedHandler>());
+```
+
 **That's it!** The library automatically:
 - ✅ Scans for `IMessageHandler<T>` implementations in your assembly
-- ✅ Creates exchanges based on message type (events → topic, commands → direct)
-- ✅ Creates queues with service-specific names
+- ✅ Creates exchanges/streams based on message type (events → topic exchange/stream, commands → direct exchange/stream)
+- ✅ Creates queues/consumer groups with service-specific names
 - ✅ Sets up bindings with smart routing keys
 - ✅ Registers handlers in DI
-- ✅ Configures consumers for each handler's queue
+- ✅ Configures consumers for each handler's queue/stream
 - ✅ Configures dead letter queues (optional)
 
 ## Handler-Based Topology Discovery
@@ -428,6 +468,133 @@ services.AddRabbitMqMessaging(
     builder.Configuration,
     options => options.WithConnectionName("MyApp"));
 ```
+
+---
+
+## Redis Streams Provider
+
+The Redis Streams provider offers high-performance message streaming using Redis 6.2+ features including consumer groups, automatic message claiming, and dead letter handling.
+
+### Installation
+
+```bash
+dotnet add package Donakunn.MessagingOverQueue.RedisStreams
+```
+
+### Basic Configuration
+
+```csharp
+using Donakunn.MessagingOverQueue.RedisStreams.DependencyInjection;
+
+services.AddRedisStreamsMessaging(options => options
+    .UseConnectionString("localhost:6379,password=secret")
+    .WithStreamPrefix("myapp"))
+    .AddTopology(topology => topology
+        .WithServiceName("order-service")
+        .ScanAssemblyContaining<OrderCreatedHandler>());
+```
+
+### Advanced Configuration
+
+```csharp
+services.AddRedisStreamsMessaging(options => options
+    // Connection
+    .UseConnectionString("localhost:6379")
+    .UseDatabase(0)
+    .WithConnectionTimeout(TimeSpan.FromSeconds(30))
+    .WithStreamPrefix("myapp")
+    
+    // Consumer settings
+    .ConfigureConsumer(consumer => consumer
+        .WithBatchSize(100)              // Messages per XREADGROUP call
+        .WithMaxConcurrency(10)          // Parallel message processing
+        .WithClaimIdleTime(TimeSpan.FromMinutes(5))  // XAUTOCLAIM threshold
+        .WithBlockingTimeout(TimeSpan.FromSeconds(5)))
+    
+    // Retention strategy (choose one)
+    .WithTimeBasedRetention(TimeSpan.FromDays(7))    // MINID trimming
+    // OR
+    .WithCountBasedRetention(100_000)                // MAXLEN trimming
+    
+    // Dead letter handling
+    .WithDeadLetterPerConsumerGroup()   // DLQ per consumer group
+    .WithMaxDeliveryAttempts(5))        // Attempts before DLQ
+    .AddTopology(topology => topology
+        .WithServiceName("order-service")
+        .ScanAssemblyContaining<OrderCreatedHandler>());
+```
+
+### Configuration from appsettings.json
+
+```csharp
+services.AddRedisStreamsMessaging(builder.Configuration);
+```
+
+```json
+{
+  "RedisStreams": {
+    "ConnectionString": "localhost:6379",
+    "Password": "secret",
+    "Database": 0,
+    "StreamPrefix": "myapp",
+    "ConnectionTimeout": "00:00:30",
+    "ConsumerOptions": {
+      "BatchSize": 100,
+      "MaxConcurrency": 10,
+      "ClaimIdleTime": "00:05:00",
+      "BlockingTimeout": "00:00:05"
+    },
+    "RetentionStrategy": "TimeBased",
+    "RetentionPeriod": "7.00:00:00",
+    "DeadLetterStrategy": "PerConsumerGroup",
+    "MaxDeliveryAttempts": 5
+  }
+}
+```
+
+### Redis Streams Concepts
+
+| Concept | Description |
+|---------|-------------|
+| **Stream** | Append-only log structure (like Kafka topics) |
+| **Consumer Group** | Named group that tracks message delivery state |
+| **Consumer** | Instance within a group that processes messages |
+| **Pending Entries List (PEL)** | Messages delivered but not acknowledged |
+| **XAUTOCLAIM** | Automatically reclaim idle messages from failed consumers |
+
+### Consumer Group Naming
+
+By default, consumer groups are named after the service name configured in topology. Override with the `[RedisConsumerGroup]` attribute:
+
+```csharp
+using Donakunn.MessagingOverQueue.Topology.Attributes;
+
+[RedisConsumerGroup("custom-processing-group")]
+public class OrderCreatedHandler : IMessageHandler<OrderCreatedEvent>
+{
+    // ...
+}
+```
+
+### Dead Letter Handling
+
+Redis Streams don't have native dead letter exchanges. This library implements DLQ by:
+
+1. Tracking delivery count via `XPENDING`
+2. Moving messages to a DLQ stream after `MaxDeliveryAttempts`
+3. Creating DLQ streams named: `{prefix}:{stream-name}:dlq` or `{prefix}:{stream-name}:{group}:dlq`
+
+### Health Checks
+
+```csharp
+services.AddRedisStreamsMessaging(options => { /* ... */ })
+    .AddHealthChecks(
+        name: "redis-streams",
+        failureStatus: HealthStatus.Unhealthy,
+        tags: ["ready", "messaging"]);
+```
+
+---
 
 ## Publishing Messages
 

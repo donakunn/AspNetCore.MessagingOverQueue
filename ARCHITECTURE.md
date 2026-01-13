@@ -10,37 +10,97 @@
 - [Resilience Patterns](#resilience-patterns)
 - [Outbox Pattern](#outbox-pattern)
 - [Connection Management](#connection-management)
+- [Redis Streams Provider](#redis-streams-provider)
 - [Extension Points](#extension-points)
 
 ---
 
 ## Architecture Overview
 
-The library follows a layered architecture with clean separation of concerns:
+The library follows a **provider-based architecture** with clear separation between:
+- **Core Abstractions** (`Donakunn.MessagingOverQueue`): Provider-agnostic interfaces, middleware pipeline, and topology management
+- **Concrete Providers**: RabbitMQ (built-in) and Redis Streams (separate package)
+
+This design enables seamless switching between messaging backends without changing application code.
 
 ```
-???????????????????????????????????????????????????????????????????????
-?                    Application Layer                                 ?
-?  (ICommandSender, IEventPublisher, IMessageHandler<T>)              ?
-???????????????????????????????????????????????????????????????????????
-?                   Middleware Pipeline Layer                          ?
-?  Publishing: Logging ? Serialization ? Topology Resolution          ?
-?  Consuming: Logging ? Deserialization ? Idempotency ? Retry         ?
-???????????????????????????????????????????????????????????????????????
-?                     Topology Layer                                   ?
-?  Auto-Discovery, Convention-Based Naming, Registry                  ?
-???????????????????????????????????????????????????????????????????????
-?                Infrastructure Layer                                  ?
-?  RabbitMqPublisher, RabbitMqConsumer, OutboxPublisher               ?
-???????????????????????????????????????????????????????????????????????
-?                 Configuration Layer                                  ?
-?  Sources: Aspire ? AppSettings ? Fluent API ? Custom                ?
-???????????????????????????????????????????????????????????????????????
-?                   Connection Pool                                    ?
-?  RabbitMqConnectionPool (Channel Pooling & Lifecycle)               ?
-???????????????????????????????????????????????????????????????????????
-?                      RabbitMQ Broker                                 ?
-???????????????????????????????????????????????????????????????????????
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Application Layer                                 │
+│  (ICommandSender, IEventPublisher, IMessageHandler<T>)              │
+├─────────────────────────────────────────────────────────────────────┤
+│                   Middleware Pipeline Layer                          │
+│  Publishing: Logging → Serialization → Topology Resolution          │
+│  Consuming: Logging → Deserialization → Idempotency → Retry         │
+├─────────────────────────────────────────────────────────────────────┤
+│                     Topology Layer                                   │
+│  Auto-Discovery, Convention-Based Naming, Registry                  │
+├─────────────────────────────────────────────────────────────────────┤
+│                   Provider Abstraction Layer                         │
+│  IMessagingProvider, IInternalPublisher, IInternalConsumer          │
+├──────────────────────────┬──────────────────────────────────────────┤
+│   RabbitMQ Provider      │   Redis Streams Provider                 │
+│  (Core Package)          │   (Separate Package)                     │
+│                          │                                           │
+│  RabbitMqPublisher       │   RedisStreamsPublisher                  │
+│  RabbitMqConsumer        │   RedisStreamsConsumer                   │
+│  RabbitMqConnectionPool  │   RedisConnectionPool                    │
+│  RabbitMqTopologyDeclarer│   RedisStreamsTopologyDeclarer           │
+├──────────────────────────┴──────────────────────────────────────────┤
+│                 Configuration Layer                                  │
+│  Sources: Aspire • AppSettings • Fluent API • Custom                │
+├─────────────────────────────────────────────────────────────────────┤
+│                    Message Broker / Storage                          │
+│              RabbitMQ           │         Redis                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Provider Abstraction
+
+The library uses a provider pattern to support multiple messaging backends. All providers implement core interfaces that abstract the underlying messaging infrastructure:
+
+#### IMessagingProvider
+Orchestrates all provider-specific components:
+
+```csharp
+public interface IMessagingProvider
+{
+    string ProviderName { get; }
+    Task InitializeAsync(CancellationToken cancellationToken = default);
+    Task<IInternalPublisher> CreatePublisherAsync(CancellationToken cancellationToken = default);
+    Task<IInternalConsumer> CreateConsumerAsync(ConsumerOptions options, CancellationToken cancellationToken = default);
+    Task DeclareTopologyAsync(TopologyDefinition definition, CancellationToken cancellationToken = default);
+    IHealthCheck CreateHealthCheck();
+}
+```
+
+#### IInternalPublisher
+Provider-specific publishing logic:
+- Receives serialized message from middleware pipeline
+- Routes to appropriate destination (exchange/stream)
+- Returns metadata (message ID, timestamp)
+
+#### IInternalConsumer
+Provider-specific consumption logic:
+- Receives messages from source (queue/stream)
+- Manages acknowledgments and retries
+- Feeds messages into middleware pipeline
+
+#### ITopologyDeclarer
+Provider-specific topology creation:
+- **RabbitMQ**: Creates exchanges, queues, and bindings
+- **Redis Streams**: Creates streams and consumer groups
+
+### Usage - Seamless Provider Switching
+
+Application code remains unchanged when switching providers:
+
+```csharp
+// RabbitMQ
+services.AddRabbitMqMessaging(config);
+
+// Redis Streams (same abstractions, different provider)
+services.AddRedisStreamsMessaging(options => 
+    options.UseConnectionString("localhost:6379"));
 ```
 
 ### Design Principles
@@ -677,9 +737,9 @@ Background hosted service:
 
 ## Connection Management
 
-**Location**: `src/Connection/`
+### RabbitMQ Connection Pool
 
-### RabbitMqConnectionPool
+**Location**: `src/Donakunn.MessagingOverQueue/Connection/`
 
 **Features**:
 - Single connection per application
@@ -691,12 +751,42 @@ Background hosted service:
 **Architecture**:
 ```
 Application
-    ?
+    │
 RabbitMqConnectionPool
-    ??? IConnection (singleton)
-    ??? Channel Pool
-        ??? Pooled Channels (for publishing)
-        ??? Dedicated Channels (for consumers)
+    ├── IConnection (singleton)
+    └── Channel Pool
+        ├── Pooled Channels (for publishing)
+        └── Dedicated Channels (for consumers)
+```
+
+### Redis Connection Pool
+
+**Location**: `src/Donakunn.MessagingOverQueue.RedisStreams/Connection/`
+
+**Features**:
+- ConnectionMultiplexer management (singleton)
+- Lazy connection establishment
+- Automatic reconnection handling
+- Connection event logging
+- Thread-safe initialization
+
+**Architecture**:
+```
+Application
+    │
+RedisConnectionPool
+    └── ConnectionMultiplexer (singleton)
+        └── IDatabase (per-operation)
+```
+
+**Key Methods**:
+```csharp
+public interface IRedisConnectionPool : IAsyncDisposable
+{
+    Task<IDatabase> GetDatabaseAsync(CancellationToken ct = default);
+    Task EnsureConnectedAsync(CancellationToken ct = default);
+    bool IsConnected { get; }
+}
 ```
 
 **Key Methods**:
@@ -708,6 +798,264 @@ public interface IRabbitMqConnectionPool
     Task<IChannel> CreateDedicatedChannelAsync(CancellationToken ct);
     Task EnsureConnectedAsync(CancellationToken ct);
     ValueTask DisposeAsync();
+}
+```
+
+---
+
+## Redis Streams Provider
+
+**Package**: `Donakunn.MessagingOverQueue.RedisStreams`  
+**Minimum Redis Version**: 5.0+ (6.2+ recommended for XAUTOCLAIM)
+
+The Redis Streams provider implements the same messaging abstractions using Redis Streams, providing high-throughput, durable message streaming with consumer group semantics.
+
+### Architecture
+
+Unlike RabbitMQ's exchange-queue model, Redis Streams uses:
+- **Streams**: Append-only logs of messages (analogous to topics)
+- **Consumer Groups**: Multiple consumers that load-balance messages
+- **Pending Entry List (PEL)**: Tracks unacknowledged messages per consumer
+
+### Key Components
+
+| Component | Description | Core Responsibilities |
+|-----------|-------------|----------------------|
+| `RedisStreamsMessagingProvider` | Implements `IMessagingProvider` | Orchestrates all Redis Streams components |
+| `RedisStreamsPublisher` | Implements `IInternalPublisher` | Publishes messages to streams with optional trimming |
+| `RedisStreamsConsumer` | Implements `IInternalConsumer` | Consumes messages using XREADGROUP with XAUTOCLAIM |
+| `RedisStreamsTopologyDeclarer` | Implements `ITopologyDeclarer` | Creates streams and consumer groups on startup |
+| `RedisConnectionPool` | Connection management | Manages ConnectionMultiplexer lifecycle |
+| `RedisStreamsHealthCheck` | Health monitoring | Verifies Redis connectivity |
+
+### Message Flow
+
+**Publishing Pipeline**:
+```
+IEventPublisher.PublishAsync()
+        ↓
+Middleware Pipeline (Logging, Serialization, Topology Resolution)
+        ↓
+RedisStreamsPublisher
+        ↓
+XADD {stream-key} * message-id {id} message-type {type} body {json} ...
+        ↓
+XTRIM {stream-key} MAXLEN ~ {maxLength} (if retention enabled)
+```
+
+**Consuming Pipeline**:
+```
+XREADGROUP GROUP {group} {consumer} BLOCK {ms} STREAMS {stream} >
+        ↓
+RedisStreamsConsumer (batched reads)
+        ↓
+Middleware Pipeline (Deserialization, Idempotency, Retry)
+        ↓
+IMessageHandler<T>.HandleAsync()
+        ↓
+XACK {stream} {group} {message-id} (on success)
+        ↓
+XADD {dlq-stream} * ... (on max retries exceeded)
+```
+
+**Idle Message Claiming** (Background Task):
+```
+XAUTOCLAIM {stream} {group} {consumer} {idle-time-ms} 0-0 COUNT {batch}
+        ↓
+Process claimed messages through pipeline
+        ↓
+XACK (on success) or retry claim
+```
+
+### Topology Mapping: Core Concepts → Redis Streams
+
+| Core Abstraction | RabbitMQ | Redis Streams |
+|-----------------|----------|---------------|
+| **Exchange** | AMQP Exchange | Stream (append-only log) |
+| **Queue** | Durable Queue | Consumer Group |
+| **Binding** | Exchange-to-Queue binding | Consumer Group registration |
+| **Routing Key** | Message routing | Stream key component |
+| **Consumer** | Queue consumer | Consumer Group member |
+| **Dead Letter** | DLX + DLQ | Separate DLQ stream |
+
+### Stream Naming Convention
+
+Streams are named based on the topology definition:
+
+**Pattern**: `{prefix}:{service-name}.{message-type}`
+
+**Examples**:
+- Event: `messaging:order-service.order-created`
+- Command: `messaging:payment-service.process-payment`
+
+**Code**:
+```csharp
+// Topology definition (shared across providers)
+var topology = new TopologyDefinition
+{
+    MessageType = typeof(OrderCreatedEvent),
+    ExchangeName = \"order-service\",
+    RoutingKey = \"order-created\"
+};
+
+// Redis Streams implementation
+var streamKey = $\"{options.StreamPrefix}:{topology.ExchangeName}.{topology.RoutingKey}\";
+// Result: \"messaging:order-service.order-created\"
+```
+
+### Consumer Group Pattern
+
+**Concept**: Redis Streams consumer groups enable competing consumer semantics similar to RabbitMQ queues.
+
+**Key Features**:
+1. **Load Balancing**: Messages distributed across consumers in the same group
+2. **Independent Consumption**: Each service has its own consumer group on the same stream
+3. **At-Least-Once Delivery**: Messages tracked in PEL until acknowledged
+
+**Example Scenario**:
+```
+Stream: messaging:order-service.order-created
+
+Consumer Groups:
+  - inventory-service   (ConsumerA, ConsumerB)  <- Load balanced
+  - notification-service (ConsumerC)            <- Independent consumption
+  - analytics-service    (ConsumerD, ConsumerE) <- Load balanced
+```
+
+**Implementation**:
+```csharp
+// Create consumer group (topology declaration)
+await db.StreamCreateConsumerGroupAsync(
+    streamKey,
+    consumerGroup,
+    StreamPosition.NewMessages,
+    createStream: true);
+
+// Consume from group
+var entries = await db.StreamReadGroupAsync(
+    streamKey,
+    consumerGroup,
+    consumerId,
+    position: StreamPosition.NewMessages,
+    count: batchSize);
+```
+
+### Pending Entry List (PEL) Management
+
+The PEL tracks unacknowledged messages for each consumer.
+
+**Automatic Claiming** (XAUTOCLAIM):
+```csharp
+// Periodically claim idle messages from other consumers
+var claimed = await db.StreamAutoClaimAsync(
+    streamKey,
+    consumerGroup,
+    consumerId,
+    minIdleTimeMs: (long)options.ClaimIdleTime.TotalMilliseconds,
+    startId: \"0-0\",
+    count: batchSize);
+```
+
+**Use Cases**:
+- Consumer crashes before acknowledging
+- Consumer is slow/stuck processing
+- Ensures no messages are lost
+
+**Configuration**:
+```csharp
+services.AddRedisStreamsMessaging(options => options
+    .WithClaimIdleTime(TimeSpan.FromMinutes(5))  // Claim after 5 mins idle
+    .ConfigureConsumer(maxPendingMessages: 1000)); // Backpressure threshold
+```
+
+### Dead Letter Queue (DLQ) Handling
+
+Since Redis Streams don't have native DLX, the provider implements DLQ logic:
+
+**Flow**:
+1. Track delivery attempts via `XPENDING`
+2. If `deliveryCount > MaxDeliveryAttempts`:
+   - Add message to DLQ stream
+   - Acknowledge original message (removes from PEL)
+
+**DLQ Naming Strategies**:
+
+| Strategy | DLQ Stream Name | Use Case |
+|----------|----------------|----------|
+| **PerConsumerGroup** | `{stream}:{group}:dlq` | Isolated DLQs per service |
+| **PerStream** | `{stream}:dlq` | Shared DLQ for all consumers |
+| **Disabled** | N/A | Manual failure handling |
+
+**Example**:
+```csharp
+// Original stream
+messaging:order-service.order-created
+
+// Per-consumer-group DLQ
+messaging:order-service.order-created:inventory-service:dlq
+messaging:order-service.order-created:notification-service:dlq
+
+// Per-stream DLQ (shared)
+messaging:order-service.order-created:dlq
+```
+
+**DLQ Message Format**:
+```json
+{
+  \"message-id\": \"original-message-id\",
+  \"message-type\": \"OrderCreatedEvent\",
+  \"body\": \"{...}\",
+  \"dlq-reason\": \"Max delivery attempts exceeded\",
+  \"dlq-timestamp\": \"1736812800000\",
+  \"dlq-source-stream\": \"messaging:order-service.order-created\",
+  \"dlq-source-id\": \"1736812345678-0\"
+}
+```
+
+### Retention Strategies
+
+Control stream growth and memory usage:
+
+| Strategy | Redis Command | Configuration | Use Case |
+|----------|---------------|--------------|----------|
+| **None** | No trimming | `RetentionStrategy.None` | Manual management |
+| **CountBased** | `XTRIM MAXLEN ~ {count}` | `WithCountBasedRetention(100000)` | Fixed-size buffer |
+| **TimeBased** | `XTRIM MINID ~ {timestamp}` | `WithTimeBasedRetention(TimeSpan.FromDays(7))` | Time-windowed data |
+
+**Example**:
+```csharp
+services.AddRedisStreamsMessaging(options => options
+    .WithCountBasedRetention(maxLength: 100_000)); // Keep last 100k messages
+
+// Or time-based
+services.AddRedisStreamsMessaging(options => options
+    .WithTimeBasedRetention(TimeSpan.FromDays(7))); // Keep 7 days
+```
+
+### Configuration Options
+
+```csharp
+public class RedisStreamsOptions
+{
+    // Connection
+    public string ConnectionString { get; set; }
+    public int Database { get; set; } = 0;
+    public string StreamPrefix { get; set; } = "messaging";
+    
+    // Consumer
+    public int BatchSize { get; set; } = 100;
+    public int MaxConcurrency { get; set; } = 10;
+    public TimeSpan ClaimIdleTime { get; set; } = TimeSpan.FromMinutes(5);
+    public TimeSpan BlockingTimeout { get; set; } = TimeSpan.FromSeconds(5);
+    
+    // Retention
+    public StreamRetentionStrategy RetentionStrategy { get; set; } = StreamRetentionStrategy.None;
+    public TimeSpan RetentionPeriod { get; set; } = TimeSpan.FromDays(7);
+    public int MaxStreamLength { get; set; } = 100_000;
+    
+    // Dead Letter
+    public DeadLetterStrategy DeadLetterStrategy { get; set; } = DeadLetterStrategy.Disabled;
+    public int MaxDeliveryAttempts { get; set; } = 5;
 }
 ```
 

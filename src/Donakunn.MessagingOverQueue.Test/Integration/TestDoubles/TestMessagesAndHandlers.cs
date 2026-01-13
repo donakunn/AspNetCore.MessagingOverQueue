@@ -204,6 +204,9 @@ public class SlowProcessingEventHandler : IMessageHandler<SlowProcessingEvent>
         context.GetCollector<SlowProcessingEvent>(HandlerKey).Clear();
     }
 
+    public static Task WaitForCountAsync(int expected, TimeSpan timeout)
+        => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).WaitForCountAsync(expected, timeout);
+
     public async Task HandleAsync(SlowProcessingEvent message, IMessageContext context, CancellationToken cancellationToken)
     {
         await Task.Delay(message.ProcessingTime, cancellationToken);
