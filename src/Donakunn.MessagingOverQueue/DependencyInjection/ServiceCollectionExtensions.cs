@@ -14,6 +14,7 @@ using Donakunn.MessagingOverQueue.Hosting;
 using Donakunn.MessagingOverQueue.Persistence;
 using Donakunn.MessagingOverQueue.Persistence.DependencyInjection;
 using Donakunn.MessagingOverQueue.Persistence.Repositories;
+using Donakunn.MessagingOverQueue.Providers;
 using Donakunn.MessagingOverQueue.Publishing;
 using Donakunn.MessagingOverQueue.Publishing.Middleware;
 using Donakunn.MessagingOverQueue.Resilience;
@@ -167,6 +168,9 @@ public static class ServiceCollectionExtensions
         // Core connection services
         services.TryAddSingleton<IRabbitMqConnectionPool, RabbitMqConnectionPool>();
 
+        // Register messaging provider abstraction for RabbitMQ
+        services.TryAddSingleton<IMessagingProvider, Providers.RabbitMq.RabbitMqMessagingProvider>();
+
         // Serialization services
         services.TryAddSingleton<IMessageSerializer, JsonMessageSerializer>();
         services.TryAddSingleton<IMessageTypeResolver, MessageTypeResolver>();
@@ -195,6 +199,10 @@ public static class ServiceCollectionExtensions
 
         // Connection management hosted service
         services.AddHostedService<RabbitMqHostedService>();
+
+        // Consumer hosted service for RabbitMQ
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<Microsoft.Extensions.Hosting.IHostedService, ConsumerHostedService>());
 
         return new MessagingBuilder(services);
     }

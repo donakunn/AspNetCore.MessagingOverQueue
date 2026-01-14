@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Donakunn.MessagingOverQueue.RedisStreams</RootNamespace>
+    <AssemblyName>Donakunn.MessagingOverQueue.RedisStreams</AssemblyName>
+    
+    <!-- Package metadata -->
+    <PackageId>Donakunn.MessagingOverQueue.RedisStreams</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Donakunn</Authors>
+    <Description>Redis Streams messaging provider for MessagingOverQueue. Provides high-performance message streaming using Redis Streams with consumer groups, automatic message claiming, and dead letter handling.</Description>
+    <PackageTags>redis;streams;messaging;pubsub;events;cqrs;microservices</PackageTags>
+    <PackageProjectUrl>https://github.com/donakunn/Donakunn.MessagingOverQueue</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/donakunn/Donakunn.MessagingOverQueue</RepositoryUrl>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="StackExchange.Redis" Version="2.8.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Donakunn.MessagingOverQueue\Donakunn.MessagingOverQueue.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" Condition="Exists('README.md')" />
+  </ItemGroup>
+
+</Project>

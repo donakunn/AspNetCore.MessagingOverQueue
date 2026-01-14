@@ -61,9 +61,9 @@ public static class TopologyServiceCollectionExtensions
         // Register hosted service to initialize topology
         services.AddHostedService<TopologyInitializationHostedService>();
 
-        // Register consumer hosted service if handlers were discovered
-        services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<Microsoft.Extensions.Hosting.IHostedService, ConsumerHostedService>());
+        // Note: ConsumerHostedService is NOT registered here.
+        // Each messaging provider (RabbitMQ, Redis Streams, etc.) is responsible for
+        // registering its own consumer hosted service implementation.
 
         return builder;
     }
@@ -169,7 +169,9 @@ public static class TopologyServiceCollectionExtensions
                 services.AddSingleton(new ConsumerRegistration
                 {
                     Options = consumerOptions,
-                    HandlerType = handlerInfo.HandlerType
+                    HandlerType = handlerInfo.HandlerType,
+                    ExchangeName = registration.TopologyDefinition.Exchange.Name,
+                    RoutingKey = registration.TopologyDefinition.RoutingKey
                 });
             }
 

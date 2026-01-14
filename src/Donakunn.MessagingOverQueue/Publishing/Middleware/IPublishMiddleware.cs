@@ -47,6 +47,11 @@ public class PublishContext
     public string? RoutingKey { get; set; }
 
     /// <summary>
+    /// The queue name (used by some providers like Redis Streams for stream key).
+    /// </summary>
+    public string? QueueName { get; set; }
+
+    /// <summary>
     /// Whether the message is persistent.
     /// </summary>
     public bool Persistent { get; set; } = true;
