@@ -25,6 +25,7 @@ public class DeserializationMiddleware : IConsumeMiddleware
 
     public async Task InvokeAsync(ConsumeContext context, Func<ConsumeContext, CancellationToken, Task> next, CancellationToken cancellationToken)
     {
+        // Deserialize the message first - wrap only deserialization in try-catch
         try
         {
             // Try to get message type from headers first, then fall back to context.Data
@@ -69,8 +70,6 @@ public class DeserializationMiddleware : IConsumeMiddleware
 
             _logger.LogDebug("Deserialized message {MessageId} of type {MessageType}",
                 context.Message.Id, messageType.Name);
-
-            await next(context, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -78,6 +77,11 @@ public class DeserializationMiddleware : IConsumeMiddleware
             context.Exception = ex;
             context.ShouldReject = true;
             context.RequeueOnReject = false;
+            return;
         }
+
+        // Call the next middleware/handler - let exceptions propagate
+        // so that failed messages stay in pending for reclaiming
+        await next(context, cancellationToken);
     }
 }
