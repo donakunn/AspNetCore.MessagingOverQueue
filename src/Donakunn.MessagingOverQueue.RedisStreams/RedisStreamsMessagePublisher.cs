@@ -41,6 +41,7 @@ internal sealed class RedisStreamsMessagePublisher : IMessagePublisher, IEventPu
         // Use routing resolver for defaults if not explicitly specified
         var exchangeName = options.ExchangeName ?? _routingResolver.GetExchangeName<T>();
         var routingKey = options.RoutingKey ?? _routingResolver.GetRoutingKey<T>();
+        var queueName = _routingResolver.GetQueueName<T>();
 
         var context = new PublishContext
         {
@@ -48,6 +49,7 @@ internal sealed class RedisStreamsMessagePublisher : IMessagePublisher, IEventPu
             MessageType = typeof(T),
             ExchangeName = exchangeName,
             RoutingKey = routingKey,
+            QueueName = queueName,
             Persistent = options.Persistent,
             Priority = options.Priority,
             TimeToLive = options.TimeToLive,

@@ -169,7 +169,9 @@ public static class TopologyServiceCollectionExtensions
                 services.AddSingleton(new ConsumerRegistration
                 {
                     Options = consumerOptions,
-                    HandlerType = handlerInfo.HandlerType
+                    HandlerType = handlerInfo.HandlerType,
+                    ExchangeName = registration.TopologyDefinition.Exchange.Name,
+                    RoutingKey = registration.TopologyDefinition.RoutingKey
                 });
             }
 

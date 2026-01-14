@@ -182,29 +182,19 @@ public sealed class RedisStreamsTopologyDeclarer : ITopologyDeclarer
 
     /// <summary>
     /// Builds the Redis stream key from the topology definition.
+    /// Uses queue name to match publisher and consumer stream key format.
     /// </summary>
     private string BuildStreamKey(TopologyDefinition definition)
     {
-        var parts = new List<string>();
+        // Use queue name as stream key (matches publisher and consumer)
+        var streamName = definition.Queue.Name;
 
-        if (!string.IsNullOrEmpty(_options.StreamPrefix))
+        if (string.IsNullOrEmpty(_options.StreamPrefix))
         {
-            parts.Add(_options.StreamPrefix);
+            return streamName;
         }
 
-        // Use exchange name as the primary stream identifier
-        if (!string.IsNullOrEmpty(definition.Exchange.Name))
-        {
-            parts.Add(definition.Exchange.Name);
-        }
-
-        // Add routing key for more specific streams
-        if (!string.IsNullOrEmpty(definition.RoutingKey))
-        {
-            parts.Add(definition.RoutingKey);
-        }
-
-        return string.Join(":", parts);
+        return $"{_options.StreamPrefix}:{streamName}";
     }
 
     /// <summary>

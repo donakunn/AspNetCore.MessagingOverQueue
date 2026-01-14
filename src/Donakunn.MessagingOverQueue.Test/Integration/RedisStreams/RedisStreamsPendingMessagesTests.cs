@@ -38,8 +38,8 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
         await Task.Delay(2000);
 
         // Assert
-        var streamKey = $"{StreamPrefix}:test-service.failing-event";
-        var consumerGroup = "test-service.failing-event";
+        var streamKey = $"{StreamPrefix}:test-service.failing";
+        var consumerGroup = "test-service.failing";
         var pendingCount = await GetPendingMessagesCountAsync(streamKey, consumerGroup);
 
         Assert.True(pendingCount > 0, "Failed message should be in pending list");
@@ -50,8 +50,8 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
     {
         // Arrange
         ClaimableEventHandler.Reset();
-        var streamKey = $"{StreamPrefix}:test-service.claimable-event";
-        var consumerGroup = "test-service.claimable-event";
+        var streamKey = $"{StreamPrefix}:test-service.claimable";
+        var consumerGroup = "test-service.claimable";
 
         // Phase 1: Start first consumer, process message slowly, then stop
         using (var consumer1 = await BuildHost<ClaimableEventHandler>(options =>
@@ -99,8 +99,8 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
         SimpleTestEventHandler.Reset();
         using var host = await BuildHost<SimpleTestEventHandler>();
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
-        var streamKey = $"{StreamPrefix}:test-service.simple-test-event";
-        var consumerGroup = "test-service.simple-test-event";
+        var streamKey = $"{StreamPrefix}:test-service.simple-test";
+        var consumerGroup = "test-service.simple-test";
 
         // Act - Publish message
         await publisher.PublishAsync(new SimpleTestEvent { Value = "Pending test" });
@@ -138,8 +138,8 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
         await Task.Delay(3000);
 
         // Assert
-        var streamKey = $"{StreamPrefix}:test-service.selective-failure-event";
-        var consumerGroup = "test-service.selective-failure-event";
+        var streamKey = $"{StreamPrefix}:test-service.selective-failure";
+        var consumerGroup = "test-service.selective-failure";
         var pendingCount = await GetPendingMessagesCountAsync(streamKey, consumerGroup);
 
         // Two failed messages should be pending
@@ -157,8 +157,8 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
             .WithDeadLetterPerStream(5));
 
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
-        var streamKey = $"{StreamPrefix}:test-service.failing-event";
-        var consumerGroup = "test-service.failing-event";
+        var streamKey = $"{StreamPrefix}:test-service.failing";
+        var consumerGroup = "test-service.failing";
 
         // Act - Publish failing message
         await publisher.PublishAsync(new FailingEvent { ShouldFail = true });
@@ -192,7 +192,7 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
             .WithDeadLetterPerStream(3)); // Low threshold for testing
 
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
-        var streamKey = $"{StreamPrefix}:test-service.dlq-test-event";
+        var streamKey = $"{StreamPrefix}:test-service.dlq-test";
         var dlqStreamKey = $"{streamKey}:dlq";
 
         // Act - Publish message that will always fail
@@ -206,7 +206,7 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
         Assert.True(dlqLength > 0, "Message should be moved to DLQ after max attempts");
 
         // Original stream should have message acknowledged (removed from pending)
-        var consumerGroup = "test-service.dlq-test-event";
+        var consumerGroup = "test-service.dlq-test";
         var pendingCount = await GetPendingMessagesCountAsync(streamKey, consumerGroup);
         Assert.Equal(0, pendingCount);
     }
@@ -221,7 +221,7 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
             .WithDeadLetterPerStream(2));
 
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
-        var streamKey = $"{StreamPrefix}:test-service.dlq-test-event";
+        var streamKey = $"{StreamPrefix}:test-service.dlq-test";
         var dlqStreamKey = $"{streamKey}:dlq";
 
         var testValue = $"DLQ-{Guid.NewGuid()}";
@@ -255,7 +255,7 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
         // Arrange
         RetryableEventHandler.Reset();
         using var host = await BuildHost<RetryableEventHandler>(options =>
-            options.ConfigureClaiming(TimeSpan.FromSeconds(2)));
+            options.ConfigureClaiming(TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(1)));
 
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
 
@@ -270,8 +270,9 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
         await Task.Delay(6000);
 
         // Assert - Should eventually succeed
-        var streamKey = $"{StreamPrefix}:test-service.retryable-event";
-        var consumerGroup = "test-service.retryable-event";
+        // Note: Topology naming convention removes "Event" suffix
+        var streamKey = $"{StreamPrefix}:test-service.retryable";
+        var consumerGroup = "test-service.retryable";
         
         // Message should be processed and acknowledged
         await WaitForConditionAsync(
@@ -286,8 +287,8 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
     public async Task PEL_Specific_To_Consumer_Group()
     {
         // Arrange - Two different services
-        var service1StreamKey = $"{StreamPrefix}:service1.simple-test-event";
-        var service2StreamKey = $"{StreamPrefix}:service2.simple-test-event";
+        var service1StreamKey = $"{StreamPrefix}:service1.simple-test";
+        var service2StreamKey = $"{StreamPrefix}:service2.simple-test";
 
         using var service1 = await BuildHost(services =>
         {
@@ -325,8 +326,8 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
         await Task.Delay(2000);
 
         // Assert - Each group has independent PEL
-        var pending1 = await GetPendingMessagesCountAsync(service1StreamKey, "service1.failing-event");
-        var pending2 = await GetPendingMessagesCountAsync(service2StreamKey, "service2.failing-event");
+        var pending1 = await GetPendingMessagesCountAsync(service1StreamKey, "service1.failing");
+        var pending2 = await GetPendingMessagesCountAsync(service2StreamKey, "service2.failing");
 
         Assert.True(pending1 > 0);
         Assert.True(pending2 > 0);
@@ -352,8 +353,8 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
         await Task.Delay(3000);
 
         // Assert
-        var streamKey = $"{StreamPrefix}:test-service.failing-event";
-        var consumerGroup = "test-service.failing-event";
+        var streamKey = $"{StreamPrefix}:test-service.failing";
+        var consumerGroup = "test-service.failing";
         var pendingCount = await GetPendingMessagesCountAsync(streamKey, consumerGroup);
 
         Assert.True(pendingCount >= messageCount * 0.8, 
@@ -477,11 +478,13 @@ public class RetryableEventHandler : IMessageHandler<RetryableEvent>
 
     public Task HandleAsync(RetryableEvent message, IMessageContext context, CancellationToken cancellationToken)
     {
-        var currentAttempt = Interlocked.Increment(ref _handleCount);
+        Interlocked.Increment(ref _handleCount);
 
-        if (currentAttempt < message.SucceedAfterAttempts)
+        // Use the actual delivery count from Redis, not a static counter
+        // DeliveryCount represents how many times Redis has delivered this message
+        if (context.DeliveryCount < message.SucceedAfterAttempts)
         {
-            throw new InvalidOperationException($"Attempt {currentAttempt} failed");
+            throw new InvalidOperationException($"Attempt {context.DeliveryCount} failed");
         }
 
         Interlocked.Increment(ref _successCount);

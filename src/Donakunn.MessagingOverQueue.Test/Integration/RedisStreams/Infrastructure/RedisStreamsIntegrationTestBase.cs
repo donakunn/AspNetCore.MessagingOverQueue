@@ -24,6 +24,7 @@ public abstract class RedisStreamsIntegrationTestBase : IAsyncLifetime
     protected IConnectionMultiplexer? RedisConnection { get; private set; }
 
     private readonly TestExecutionContext _testContext;
+    private readonly string _streamPrefix = $"test-{Guid.NewGuid():N}";
 
     protected RedisStreamsIntegrationTestBase()
     {
@@ -50,7 +51,7 @@ public abstract class RedisStreamsIntegrationTestBase : IAsyncLifetime
     /// <summary>
     /// Redis stream prefix for test isolation.
     /// </summary>
-    protected virtual string StreamPrefix => $"test-{Guid.NewGuid():N}";
+    protected virtual string StreamPrefix => _streamPrefix;
 
     public async Task InitializeAsync()
     {
@@ -204,7 +205,7 @@ public abstract class RedisStreamsIntegrationTestBase : IAsyncLifetime
                     options.ConfigureClaiming(TimeSpan.FromSeconds(5)); // Fast claiming for tests
                     options.WithCountBasedRetention(10000);
 
-                    //configureRedis?.Invoke(options);
+                    configureRedis?.Invoke(options);
                 })
                 .AddTopology(topology => topology
                     .WithServiceName("test-service")

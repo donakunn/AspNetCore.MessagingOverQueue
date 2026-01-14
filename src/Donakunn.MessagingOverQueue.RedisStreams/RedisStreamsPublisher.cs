@@ -140,35 +140,38 @@ public sealed class RedisStreamsPublisher : IInternalPublisher
 
     /// <summary>
     /// Builds the Redis stream key from the publish context.
-    /// Format: {prefix}:{exchange}.{routing-key} or {prefix}:{routing-key}
+    /// Format: {prefix}:{queueName}
+    /// Uses queue name to match consumer stream key format.
     /// </summary>
     private string BuildStreamKey(PublishContext context)
     {
-        var parts = new List<string>();
+        // Prefer queue name for stream key (matches consumer's stream key format)
+        var streamName = context.QueueName;
 
-        if (!string.IsNullOrEmpty(_options.StreamPrefix))
+        // Fallback to routing key if queue name not available
+        if (string.IsNullOrEmpty(streamName))
         {
-            parts.Add(_options.StreamPrefix);
+            streamName = context.RoutingKey;
         }
 
-        // Use exchange name if present, otherwise use routing key directly
-        if (!string.IsNullOrEmpty(context.ExchangeName))
+        // Last resort: use exchange name
+        if (string.IsNullOrEmpty(streamName))
         {
-            parts.Add(context.ExchangeName);
+            streamName = context.ExchangeName;
         }
 
-        if (!string.IsNullOrEmpty(context.RoutingKey))
-        {
-            parts.Add(context.RoutingKey);
-        }
-
-        if (parts.Count == 0)
+        if (string.IsNullOrEmpty(streamName))
         {
             throw new InvalidOperationException(
-                "Cannot determine stream key: both ExchangeName and RoutingKey are empty.");
+                "Cannot determine stream key: QueueName, RoutingKey, and ExchangeName are all empty.");
         }
 
-        return string.Join(":", parts);
+        if (string.IsNullOrEmpty(_options.StreamPrefix))
+        {
+            return streamName;
+        }
+
+        return $"{_options.StreamPrefix}:{streamName}";
     }
 
     private static string? GetHeaderValue(Dictionary<string, object?> headers, string key)

@@ -30,8 +30,8 @@ public class RedisStreamsConsumerGroupsTests : RedisStreamsIntegrationTestBase
         await Task.Delay(500);
 
         // Assert
-        var streamKey = $"{StreamPrefix}:test-service.simple-test-event";
-        var consumerGroup = "test-service.simple-test-event";
+        var streamKey = $"{StreamPrefix}:test-service.simple-test";
+        var consumerGroup = "test-service.simple-test";
 
         var groupExists = await ConsumerGroupExistsAsync(streamKey, consumerGroup);
         Assert.True(groupExists, "Consumer group should be created on startup");
@@ -62,8 +62,8 @@ public class RedisStreamsConsumerGroupsTests : RedisStreamsIntegrationTestBase
         Assert.Equal(messageCount, SimpleTestEventHandler.HandleCount);
 
         // Verify load balancing occurred via Redis consumer info
-        var streamKey = $"{StreamPrefix}:test-service.simple-test-event";
-        var consumerGroup = "test-service.simple-test-event";
+        var streamKey = $"{StreamPrefix}:test-service.simple-test";
+        var consumerGroup = "test-service.simple-test";
         var consumers = await GetConsumersAsync(streamKey, consumerGroup);
 
         Assert.Equal(2, consumers.Length);
@@ -126,8 +126,8 @@ public class RedisStreamsConsumerGroupsTests : RedisStreamsIntegrationTestBase
         await WaitForConditionAsync(
             async () =>
             {
-                var stream1 = $"{StreamPrefix}:service-1.simple-test-event";
-                var stream2 = $"{StreamPrefix}:service-2.simple-test-event";
+                var stream1 = $"{StreamPrefix}:service-1.simple-test";
+                var stream2 = $"{StreamPrefix}:service-2.simple-test";
                 
                 var count1 = await GetStreamLengthAsync(stream1);
                 var count2 = await GetStreamLengthAsync(stream2);
@@ -137,8 +137,8 @@ public class RedisStreamsConsumerGroupsTests : RedisStreamsIntegrationTestBase
             DefaultTimeout);
 
         // Assert - Both consumer groups should have access to all messages
-        var stream1Key = $"{StreamPrefix}:service-1.simple-test-event";
-        var stream2Key = $"{StreamPrefix}:service-2.simple-test-event";
+        var stream1Key = $"{StreamPrefix}:service-1.simple-test";
+        var stream2Key = $"{StreamPrefix}:service-2.simple-test";
 
         Assert.True(await GetStreamLengthAsync(stream1Key) >= messageCount);
         Assert.True(await GetStreamLengthAsync(stream2Key) >= messageCount);
@@ -181,8 +181,8 @@ public class RedisStreamsConsumerGroupsTests : RedisStreamsIntegrationTestBase
             DefaultTimeout);
 
         // Assert
-        var streamKey = $"{StreamPrefix}:test-service.simple-test-event";
-        var consumerGroup = "test-service.simple-test-event";
+        var streamKey = $"{StreamPrefix}:test-service.simple-test";
+        var consumerGroup = "test-service.simple-test";
         var consumers = await GetConsumersAsync(streamKey, consumerGroup);
 
         // Should have 2 consumers in the group
@@ -224,8 +224,8 @@ public class RedisStreamsConsumerGroupsTests : RedisStreamsIntegrationTestBase
         
         // Slow group should still be processing (not all done yet)
         // We'll give it some time but verify independent state
-        var slowStreamKey = $"{StreamPrefix}:test-service.slow-processing-event";
-        var slowGroup = "test-service.slow-processing-event";
+        var slowStreamKey = $"{StreamPrefix}:test-service.slow-processing";
+        var slowGroup = "test-service.slow-processing";
         var slowPending = await GetPendingMessagesCountAsync(slowStreamKey, slowGroup);
         
         // Since slow processing takes 500ms each and sequential, some should still be pending
@@ -275,8 +275,8 @@ public class RedisStreamsConsumerGroupsTests : RedisStreamsIntegrationTestBase
         Assert.Equal(messagesAfterRestart, SimpleTestEventHandler.HandleCount);
 
         // Verify consumer group still exists
-        var streamKey = $"{StreamPrefix}:test-service.simple-test-event";
-        var consumerGroup = "test-service.simple-test-event";
+        var streamKey = $"{StreamPrefix}:test-service.simple-test";
+        var consumerGroup = "test-service.simple-test";
         Assert.True(await ConsumerGroupExistsAsync(streamKey, consumerGroup));
     }
 
@@ -363,11 +363,11 @@ public class RedisStreamsConsumerGroupsTests : RedisStreamsIntegrationTestBase
         await Task.Delay(2000);
 
         // Assert - Each group has its own pending list
-        var stream1 = $"{StreamPrefix}:pending-service-1.simple-test-event";
-        var stream2 = $"{StreamPrefix}:pending-service-2.simple-test-event";
+        var stream1 = $"{StreamPrefix}:pending-service-1.simple-test";
+        var stream2 = $"{StreamPrefix}:pending-service-2.simple-test";
 
-        var pending1 = await GetPendingMessagesCountAsync(stream1, "pending-service-1.simple-test-event");
-        var pending2 = await GetPendingMessagesCountAsync(stream2, "pending-service-2.simple-test-event");
+        var pending1 = await GetPendingMessagesCountAsync(stream1, "pending-service-1.simple-test");
+        var pending2 = await GetPendingMessagesCountAsync(stream2, "pending-service-2.simple-test");
 
         // Pending counts are independent
         Assert.True(pending1 >= 0);

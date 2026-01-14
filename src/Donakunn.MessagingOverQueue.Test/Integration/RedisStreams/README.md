@@ -118,7 +118,7 @@ Tests automatic topology creation and management.
 [Fact]
 public async Task Stream_Created_On_First_Publish()
 {
-    var streamKey = $"{StreamPrefix}:test-service.simple-test-event";
+    var streamKey = $"{StreamPrefix}:test-service.simple-test";
     
     await publisher.PublishAsync(new SimpleTestEvent { Value = "First" });
     

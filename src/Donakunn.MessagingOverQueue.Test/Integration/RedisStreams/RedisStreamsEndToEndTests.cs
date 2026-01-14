@@ -188,7 +188,7 @@ public class RedisStreamsEndToEndTests : RedisStreamsIntegrationTestBase
         await SimpleTestEventHandler.WaitForCountAsync(1, DefaultTimeout);
 
         // Assert - Verify stream exists in Redis
-        var streamKey = $"{StreamPrefix}:test-service.simple-test-event";
+        var streamKey = $"{StreamPrefix}:test-service.simple-test";
         var streamLength = await GetStreamLengthAsync(streamKey);
         Assert.True(streamLength > 0, "Stream should contain at least one message");
 
@@ -224,8 +224,8 @@ public class RedisStreamsEndToEndTests : RedisStreamsIntegrationTestBase
         await ComplexTestEventHandler.WaitForCountAsync(1, DefaultTimeout);
 
         // Assert - Verify separate streams
-        var simpleStream = $"{StreamPrefix}:test-service.simple-test-event";
-        var complexStream = $"{StreamPrefix}:test-service.complex-test-event";
+        var simpleStream = $"{StreamPrefix}:test-service.simple-test";
+        var complexStream = $"{StreamPrefix}:test-service.complex-test";
 
         Assert.True(await GetStreamLengthAsync(simpleStream) > 0);
         Assert.True(await GetStreamLengthAsync(complexStream) > 0);

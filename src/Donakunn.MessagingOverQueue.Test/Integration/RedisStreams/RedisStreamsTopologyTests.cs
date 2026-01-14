@@ -27,7 +27,7 @@ public class RedisStreamsTopologyTests : RedisStreamsIntegrationTestBase
         // Arrange
         using var host = await BuildHost<SimpleTestEventHandler>();
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
-        var streamKey = $"{StreamPrefix}:test-service.simple-test-event";
+        var streamKey = $"{StreamPrefix}:test-service.simple-test";
 
         // Verify stream doesn't exist yet
         var lengthBefore = await GetStreamLengthAsync(streamKey);
@@ -48,8 +48,8 @@ public class RedisStreamsTopologyTests : RedisStreamsIntegrationTestBase
     public async Task Consumer_Group_Created_On_Startup()
     {
         // Arrange
-        var streamKey = $"{StreamPrefix}:test-service.simple-test-event";
-        var consumerGroup = "test-service.simple-test-event";
+        var streamKey = $"{StreamPrefix}:test-service.simple-test";
+        var consumerGroup = "test-service.simple-test";
 
         // Act
         using var host = await BuildHost<SimpleTestEventHandler>();
@@ -80,15 +80,15 @@ public class RedisStreamsTopologyTests : RedisStreamsIntegrationTestBase
         await ComplexTestEventHandler.WaitForCountAsync(1, DefaultTimeout);
 
         // Assert
-        var simpleStream = $"{StreamPrefix}:test-service.simple-test-event";
-        var complexStream = $"{StreamPrefix}:test-service.complex-test-event";
+        var simpleStream = $"{StreamPrefix}:test-service.simple-test";
+        var complexStream = $"{StreamPrefix}:test-service.complex-test";
 
         Assert.True(await GetStreamLengthAsync(simpleStream) > 0);
         Assert.True(await GetStreamLengthAsync(complexStream) > 0);
 
         // Verify separate consumer groups
-        Assert.True(await ConsumerGroupExistsAsync(simpleStream, "test-service.simple-test-event"));
-        Assert.True(await ConsumerGroupExistsAsync(complexStream, "test-service.complex-test-event"));
+        Assert.True(await ConsumerGroupExistsAsync(simpleStream, "test-service.simple-test"));
+        Assert.True(await ConsumerGroupExistsAsync(complexStream, "test-service.complex-test"));
     }
 
     [Fact]
@@ -107,7 +107,7 @@ public class RedisStreamsTopologyTests : RedisStreamsIntegrationTestBase
         await Task.Delay(500);
 
         // Assert
-        var expectedStreamKey = $"{customPrefix}:test-service.simple-test-event";
+        var expectedStreamKey = $"{customPrefix}:test-service.simple-test";
         var streamLength = await GetStreamLengthAsync(expectedStreamKey);
         Assert.True(streamLength > 0, $"Stream with prefix '{customPrefix}' should exist");
     }
@@ -169,12 +169,12 @@ public class RedisStreamsTopologyTests : RedisStreamsIntegrationTestBase
         await Task.Delay(1000);
 
         // Act - Both services should create their own consumer groups
-        var stream1 = $"{StreamPrefix}:inventory-service.simple-test-event";
-        var stream2 = $"{StreamPrefix}:notification-service.simple-test-event";
+        var stream1 = $"{StreamPrefix}:inventory-service.simple-test";
+        var stream2 = $"{StreamPrefix}:notification-service.simple-test";
 
         // Assert
-        Assert.True(await ConsumerGroupExistsAsync(stream1, "inventory-service.simple-test-event"));
-        Assert.True(await ConsumerGroupExistsAsync(stream2, "notification-service.simple-test-event"));
+        Assert.True(await ConsumerGroupExistsAsync(stream1, "inventory-service.simple-test"));
+        Assert.True(await ConsumerGroupExistsAsync(stream2, "notification-service.simple-test"));
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public class RedisStreamsTopologyTests : RedisStreamsIntegrationTestBase
 
         // Assert - Stream should appear in Redis keys
         var keys = await GetKeysAsync($"{StreamPrefix}:*");
-        var streamKeys = keys.Where(k => k.ToString().Contains("simple-test-event")).ToList();
+        var streamKeys = keys.Where(k => k.ToString().Contains("simple-test")).ToList();
 
         Assert.NotEmpty(streamKeys);
     }
@@ -207,14 +207,14 @@ public class RedisStreamsTopologyTests : RedisStreamsIntegrationTestBase
         await Task.Delay(1000);
 
         // Act
-        var streamKey = $"{StreamPrefix}:test-service.simple-test-event";
+        var streamKey = $"{StreamPrefix}:test-service.simple-test";
         var db = GetRedisDatabase();
         var groups = await db.StreamGroupInfoAsync(streamKey);
 
         // Assert
         Assert.NotEmpty(groups);
 
-        var group = groups.FirstOrDefault(g => g.Name == "test-service.simple-test-event");
+        var group = groups.FirstOrDefault(g => g.Name == "test-service.simple-test");
         Assert.NotNull(group);
         Assert.True(group.ConsumerCount > 0);
     }
@@ -236,7 +236,7 @@ public class RedisStreamsTopologyTests : RedisStreamsIntegrationTestBase
         await Task.Delay(1000);
 
         // Assert
-        var streamKey = $"{StreamPrefix}:test-service.simple-test-event";
+        var streamKey = $"{StreamPrefix}:test-service.simple-test";
         var db = GetRedisDatabase();
         var info = await db.StreamInfoAsync(streamKey);
 
@@ -248,8 +248,8 @@ public class RedisStreamsTopologyTests : RedisStreamsIntegrationTestBase
     {
         // Arrange
         SimpleTestEventHandler.Reset();
-        var streamKey = $"{StreamPrefix}:test-service.simple-test-event";
-        var consumerGroup = "test-service.simple-test-event";
+        var streamKey = $"{StreamPrefix}:test-service.simple-test";
+        var consumerGroup = "test-service.simple-test";
 
         // Pre-publish messages to stream (manual)
         var db = GetRedisDatabase();
@@ -310,7 +310,7 @@ public class RedisStreamsTopologyTests : RedisStreamsIntegrationTestBase
         Assert.Equal(1, MultiHandlerEventHandler2.HandleCount);
 
         // Verify only one stream created
-        var streamKey = $"{StreamPrefix}:test-service.multi-handler-event";
+        var streamKey = $"{StreamPrefix}:test-service.multi-handler";
         Assert.True(await GetStreamLengthAsync(streamKey) > 0);
     }
 
@@ -318,8 +318,8 @@ public class RedisStreamsTopologyTests : RedisStreamsIntegrationTestBase
     public async Task Topology_Survives_Consumer_Restart()
     {
         // Arrange
-        var streamKey = $"{StreamPrefix}:test-service.simple-test-event";
-        var consumerGroup = "test-service.simple-test-event";
+        var streamKey = $"{StreamPrefix}:test-service.simple-test";
+        var consumerGroup = "test-service.simple-test";
 
         // Phase 1: Create topology
         using (var host1 = await BuildHost<SimpleTestEventHandler>())
