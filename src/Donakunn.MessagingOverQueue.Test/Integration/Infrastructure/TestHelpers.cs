@@ -27,28 +27,29 @@ public sealed class HandlerCounter
 
 /// <summary>
 /// Thread-safe message collector for tracking handled messages in tests.
+/// Maintains insertion order using ConcurrentQueue for reliable ordering assertions.
 /// </summary>
 /// <typeparam name="T">The message type to collect.</typeparam>
 public sealed class MessageCollector<T>
 {
-    private readonly ConcurrentBag<T> _messages = [];
-    private readonly ConcurrentBag<DateTime> _timestamps = [];
-    
+    private readonly ConcurrentQueue<T> _messages = new();
+    private readonly ConcurrentQueue<DateTime> _timestamps = new();
+
     public IReadOnlyCollection<T> Messages => _messages.ToArray();
     public int Count => _messages.Count;
-    
+
     public void Add(T message)
     {
-        _messages.Add(message);
-        _timestamps.Add(DateTime.UtcNow);
+        _messages.Enqueue(message);
+        _timestamps.Enqueue(DateTime.UtcNow);
     }
-    
+
     public void Clear()
     {
         _messages.Clear();
         _timestamps.Clear();
     }
-    
+
     public async Task WaitForCountAsync(int expectedCount, TimeSpan timeout)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -57,7 +58,7 @@ public sealed class MessageCollector<T>
             await Task.Delay(50);
         }
     }
-    
+
     public bool Contains(Func<T, bool> predicate) => _messages.Any(predicate);
 }
 

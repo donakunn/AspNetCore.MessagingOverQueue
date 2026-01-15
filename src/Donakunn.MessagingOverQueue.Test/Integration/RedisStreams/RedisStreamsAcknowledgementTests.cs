@@ -47,8 +47,11 @@ public class RedisStreamsAcknowledgementTests : RedisStreamsIntegrationTestBase
     {
         // Arrange
         FailingEventHandler.Reset();
+        // Configure long intervals to prevent retries from exceeding MaxDeliveryAttempts during test
         using var host = await BuildHost<FailingEventHandler>(options =>
-            options.ConfigureClaiming(TimeSpan.FromMinutes(10))); // Don't claim during test
+            options.ConfigureClaiming(
+                claimIdleTime: TimeSpan.FromMinutes(10),
+                checkInterval: TimeSpan.FromMinutes(10)));
 
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
 
@@ -180,9 +183,14 @@ public class RedisStreamsAcknowledgementTests : RedisStreamsIntegrationTestBase
     public async Task Partial_Batch_Acknowledged_On_Success()
     {
         // Arrange - Mix of successful and failing messages
+        // Configure long claim intervals to prevent message from being moved to DLQ during test
         MixedSuccessEventHandler.Reset();
         using var host = await BuildHost<MixedSuccessEventHandler>(options =>
-            options.ConfigureConsumer(batchSize: 10));
+            options
+                .ConfigureConsumer(batchSize: 10)
+                .ConfigureClaiming(
+                    claimIdleTime: TimeSpan.FromMinutes(10),
+                    checkInterval: TimeSpan.FromMinutes(10)));
 
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
 
@@ -200,10 +208,11 @@ public class RedisStreamsAcknowledgementTests : RedisStreamsIntegrationTestBase
         var pendingCount = await GetPendingMessagesCountAsync(streamKey, consumerGroup);
 
         // At least the failed message should be pending
-        Assert.True(pendingCount >= 1);
-        
+        Assert.True(pendingCount >= 1, $"Expected at least 1 pending message but got {pendingCount}");
+
         // Successful messages processed
-        Assert.True(MixedSuccessEventHandler.SuccessCount >= 3);
+        Assert.True(MixedSuccessEventHandler.SuccessCount >= 3,
+            $"Expected at least 3 successful messages but got {MixedSuccessEventHandler.SuccessCount}");
     }
 
     [Fact]

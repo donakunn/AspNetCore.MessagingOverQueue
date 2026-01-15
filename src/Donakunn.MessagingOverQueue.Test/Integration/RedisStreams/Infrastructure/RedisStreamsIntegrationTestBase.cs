@@ -201,8 +201,8 @@ public abstract class RedisStreamsIntegrationTestBase : IAsyncLifetime
                 {
                     options.UseConnectionString(RedisConnectionString);
                     options.WithStreamPrefix(StreamPrefix);
-                    options.ConfigureConsumer(batchSize: 10);
-                    options.ConfigureClaiming(TimeSpan.FromSeconds(5)); // Fast claiming for tests
+                    options.ConfigureConsumer(batchSize: 10, blockingTimeout: TimeSpan.FromMilliseconds(100)); // Short polling for tests
+                    options.ConfigureClaiming(claimIdleTime: TimeSpan.FromSeconds(5), checkInterval: TimeSpan.FromMilliseconds(500)); // Fast claiming for tests
                     options.WithCountBasedRetention(10000);
 
                     configureRedis?.Invoke(options);

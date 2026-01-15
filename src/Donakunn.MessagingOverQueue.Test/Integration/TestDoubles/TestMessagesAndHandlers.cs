@@ -188,7 +188,9 @@ public class ComplexTestEventHandler : IMessageHandler<ComplexTestEvent>
 
 /// <summary>
 /// Handler that simulates slow processing.
+/// Configured with high concurrency to allow parallel message processing.
 /// </summary>
+[ConsumerQueue(MaxConcurrency = 10)]
 public class SlowProcessingEventHandler : IMessageHandler<SlowProcessingEvent>
 {
     private const string HandlerKey = nameof(SlowProcessingEventHandler);
