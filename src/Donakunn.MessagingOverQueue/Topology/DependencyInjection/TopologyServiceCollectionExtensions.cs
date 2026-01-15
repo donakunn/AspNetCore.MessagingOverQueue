@@ -94,11 +94,18 @@ public static class TopologyServiceCollectionExtensions
 
     /// <summary>
     /// Registers core topology services.
+    /// Uses RemoveAll + AddSingleton for naming-related services to ensure
+    /// AddTopology configuration takes precedence over any defaults registered
+    /// by messaging providers (e.g., AddRedisStreamsMessaging).
     /// </summary>
     private static void RegisterTopologyServices(IServiceCollection services, TopologyBuilder topologyBuilder)
     {
-        // Register naming convention with configured options
-        services.TryAddSingleton<ITopologyNamingConvention>(
+        // Remove any default naming convention registered by messaging providers
+        // This ensures user configuration via AddTopology takes precedence
+        services.RemoveAll<ITopologyNamingConvention>();
+
+        // Register naming convention with user-configured options
+        services.AddSingleton<ITopologyNamingConvention>(
             _ => new DefaultTopologyNamingConvention(topologyBuilder.NamingOptions));
 
         // Register topology registry (stores discovered topology definitions)
@@ -107,8 +114,11 @@ public static class TopologyServiceCollectionExtensions
         // Register topology scanner (discovers handlers and message types)
         services.TryAddSingleton<ITopologyScanner, TopologyScanner>();
 
+        // Remove any default topology provider to ensure it uses our naming convention
+        services.RemoveAll<ITopologyProvider>();
+
         // Register topology provider (generates topology from conventions)
-        services.TryAddSingleton<ITopologyProvider>(sp =>
+        services.AddSingleton<ITopologyProvider>(sp =>
         {
             var namingConvention = sp.GetRequiredService<ITopologyNamingConvention>();
             var registry = sp.GetRequiredService<ITopologyRegistry>();
@@ -118,8 +128,11 @@ public static class TopologyServiceCollectionExtensions
         // Register topology declarer (declares topology to RabbitMQ)
         services.TryAddSingleton<ITopologyDeclarer, TopologyDeclarer>();
 
+        // Remove any default routing resolver to ensure it uses our topology provider
+        services.RemoveAll<IMessageRoutingResolver>();
+
         // Register routing resolver (determines routing for publishers)
-        services.TryAddSingleton<IMessageRoutingResolver, MessageRoutingResolver>();
+        services.AddSingleton<IMessageRoutingResolver, MessageRoutingResolver>();
     }
 
     /// <summary>
