@@ -1,10 +1,8 @@
 using Donakunn.MessagingOverQueue.Abstractions.Consuming;
 using Donakunn.MessagingOverQueue.Abstractions.Messages;
 using Donakunn.MessagingOverQueue.Abstractions.Publishing;
-using Donakunn.MessagingOverQueue.RedisStreams.Configuration;
 using Donakunn.MessagingOverQueue.RedisStreams.DependencyInjection;
 using Donakunn.MessagingOverQueue.Topology.DependencyInjection;
-using MessagingOverQueue.Test.Integration.Infrastructure;
 using MessagingOverQueue.Test.Integration.RedisStreams.Infrastructure;
 using MessagingOverQueue.Test.Integration.TestDoubles;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,8 +26,11 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
     {
         // Arrange
         FailingEventHandler.Reset();
+        // Configure long intervals to prevent retries from exceeding MaxDeliveryAttempts during test
         using var host = await BuildHost<FailingEventHandler>(options =>
-            options.ConfigureClaiming(TimeSpan.FromMinutes(10))); // Prevent auto-claim during test
+            options.ConfigureClaiming(
+                claimIdleTime: TimeSpan.FromMinutes(10),
+                checkInterval: TimeSpan.FromMinutes(10)));
 
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
 
@@ -58,17 +59,17 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
             options.ConfigureClaiming(TimeSpan.FromSeconds(2)))) // Fast claim for testing
         {
             var publisher = consumer1.Services.GetRequiredService<IEventPublisher>();
-            
+
             // Publish message that will be slow to process
-            await publisher.PublishAsync(new ClaimableEvent 
-            { 
+            await publisher.PublishAsync(new ClaimableEvent
+            {
                 Value = "To be claimed",
                 ProcessingDelay = TimeSpan.FromSeconds(30) // Very slow
             });
 
             // Give it time to be picked up but not processed
             await Task.Delay(500);
-            
+
             // Stop consumer1 (message left in pending)
         }
 
@@ -87,7 +88,7 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
         // Assert - Message should be claimed and processed by consumer2
         // The handler is configured to succeed when claimed
         var pendingAfter = await GetPendingMessagesCountAsync(streamKey, consumerGroup);
-        
+
         // Should be processed or at least claimed (pending count may vary during transition)
         Assert.True(ClaimableEventHandler.HandleCount > 0, "Message should be claimed and processed");
     }
@@ -104,7 +105,7 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
 
         // Act - Publish message
         await publisher.PublishAsync(new SimpleTestEvent { Value = "Pending test" });
-        
+
         // Small delay for message to be picked up (pending increases)
         await Task.Delay(500);
         var pendingDuringProcessing = await GetPendingMessagesCountAsync(streamKey, consumerGroup);
@@ -124,8 +125,12 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
     {
         // Arrange
         SelectiveFailureEventHandler.Reset();
+        // Configure long claim check interval to prevent aggressive retries during test
+        // This ensures failed messages stay in PEL without exceeding MaxDeliveryAttempts
         using var host = await BuildHost<SelectiveFailureEventHandler>(options =>
-            options.ConfigureClaiming(TimeSpan.FromMinutes(10)));
+            options.ConfigureClaiming(
+                claimIdleTime: TimeSpan.FromMinutes(10),
+                checkInterval: TimeSpan.FromMinutes(10)));
 
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
 
@@ -162,7 +167,7 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
 
         // Act - Publish failing message
         await publisher.PublishAsync(new FailingEvent { ShouldFail = true });
-        
+
         // Wait for multiple delivery attempts
         await Task.Delay(8000);
 
@@ -177,7 +182,7 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
         if (pendingMessages.Length > 0)
         {
             var message = pendingMessages[0];
-            Assert.True(message.DeliveryCount > 1, 
+            Assert.True(message.DeliveryCount > 1,
                 $"Message should have been delivered multiple times, got {message.DeliveryCount}");
         }
     }
@@ -188,7 +193,7 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
         // Arrange
         DlqTestEventHandler.Reset();
         using var host = await BuildHost<DlqTestEventHandler>(options =>
-            options.ConfigureClaiming(TimeSpan.FromSeconds(1))
+            options.ConfigureClaiming(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1))
             .WithDeadLetterPerStream(3)); // Low threshold for testing
 
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
@@ -217,7 +222,7 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
         // Arrange
         DlqTestEventHandler.Reset();
         using var host = await BuildHost<DlqTestEventHandler>(options =>
-            options.ConfigureClaiming(TimeSpan.FromSeconds(1))
+            options.ConfigureClaiming(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1))
             .WithDeadLetterPerStream(2));
 
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
@@ -227,8 +232,8 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
         var testValue = $"DLQ-{Guid.NewGuid()}";
 
         // Act
-        await publisher.PublishAsync(new DlqTestEvent 
-        { 
+        await publisher.PublishAsync(new DlqTestEvent
+        {
             AlwaysFail = true,
             TestValue = testValue
         });
@@ -260,8 +265,8 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
 
         // Act - Publish message that fails first time, succeeds on retry
-        await publisher.PublishAsync(new RetryableEvent 
-        { 
+        await publisher.PublishAsync(new RetryableEvent
+        {
             Value = "Retry test",
             SucceedAfterAttempts = 2 // Fail once, succeed on second attempt
         });
@@ -273,7 +278,7 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
         // Note: Topology naming convention removes "Event" suffix
         var streamKey = $"{StreamPrefix}:test-service.retryable";
         var consumerGroup = "test-service.retryable";
-        
+
         // Message should be processed and acknowledged
         await WaitForConditionAsync(
             async () => await GetPendingMessagesCountAsync(streamKey, consumerGroup) == 0,
@@ -287,8 +292,8 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
     public async Task PEL_Specific_To_Consumer_Group()
     {
         // Arrange - Two different services
-        var service1StreamKey = $"{StreamPrefix}:service1.simple-test";
-        var service2StreamKey = $"{StreamPrefix}:service2.simple-test";
+        var service1StreamKey = $"{StreamPrefix}:service1.failing";
+        var service2StreamKey = $"{StreamPrefix}:service2.failing";
 
         using var service1 = await BuildHost(services =>
         {
@@ -297,10 +302,13 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
             {
                 options.UseConnectionString(RedisConnectionString);
                 options.WithStreamPrefix(StreamPrefix);
+                options.ConfigureConsumer(blockingTimeout: TimeSpan.FromMilliseconds(100));
+                options.ConfigureClaiming(claimIdleTime: TimeSpan.FromMinutes(10)); // Prevent auto-claim during test
             })
             .AddTopology(topology => topology
                 .WithServiceName("service1")
-                .ScanAssemblyContaining<FailingEventHandler>());
+                .ScanAssemblyContaining<FailingEventHandler>())
+            .AddRedisStreamsConsumerHostedService();
         });
 
         using var service2 = await BuildHost(services =>
@@ -310,10 +318,13 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
             {
                 options.UseConnectionString(RedisConnectionString);
                 options.WithStreamPrefix(StreamPrefix);
+                options.ConfigureConsumer(blockingTimeout: TimeSpan.FromMilliseconds(100));
+                options.ConfigureClaiming(claimIdleTime: TimeSpan.FromMinutes(10)); // Prevent auto-claim during test
             })
             .AddTopology(topology => topology
                 .WithServiceName("service2")
-                .ScanAssemblyContaining<FailingEventHandler>());
+                .ScanAssemblyContaining<FailingEventHandler>())
+            .AddRedisStreamsConsumerHostedService();
         });
 
         var publisher1 = service1.Services.GetRequiredService<IEventPublisher>();
@@ -338,8 +349,11 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
     {
         // Arrange
         FailingEventHandler.Reset();
+        // Configure long intervals to prevent retries from exceeding MaxDeliveryAttempts during test
         using var host = await BuildHost<FailingEventHandler>(options =>
-            options.ConfigureClaiming(TimeSpan.FromMinutes(10))
+            options.ConfigureClaiming(
+                claimIdleTime: TimeSpan.FromMinutes(10),
+                checkInterval: TimeSpan.FromMinutes(10))
             .ConfigureConsumer(batchSize: 5));
 
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
@@ -357,7 +371,7 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
         var consumerGroup = "test-service.failing";
         var pendingCount = await GetPendingMessagesCountAsync(streamKey, consumerGroup);
 
-        Assert.True(pendingCount >= messageCount * 0.8, 
+        Assert.True(pendingCount >= messageCount * 0.8,
             $"Most messages should be pending, got {pendingCount} out of {messageCount}");
     }
 }
@@ -388,7 +402,7 @@ public class ClaimableEventHandler : IMessageHandler<ClaimableEvent>
     public async Task HandleAsync(ClaimableEvent message, IMessageContext context, CancellationToken cancellationToken)
     {
         Interlocked.Increment(ref _handleCount);
-        
+
         // Simulate processing delay only on first attempt
         if (context.DeliveryCount == 1 && message.ProcessingDelay > TimeSpan.Zero)
         {

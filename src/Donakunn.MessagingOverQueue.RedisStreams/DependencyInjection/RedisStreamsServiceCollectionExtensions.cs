@@ -11,6 +11,7 @@ using Donakunn.MessagingOverQueue.RedisStreams.HealthChecks;
 using Donakunn.MessagingOverQueue.Resilience;
 using Donakunn.MessagingOverQueue.Topology;
 using Donakunn.MessagingOverQueue.Topology.Abstractions;
+using Donakunn.MessagingOverQueue.Topology.Conventions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -43,6 +44,7 @@ public static class RedisStreamsServiceCollectionExtensions
         Action<RedisStreamsOptionsBuilder> configure)
     {
         var builder = new RedisStreamsOptionsBuilder();
+
         configure(builder);
 
         services.Configure<RedisStreamsOptions>(options => builder.Configure(options));
@@ -132,6 +134,10 @@ public static class RedisStreamsServiceCollectionExtensions
         services.TryAddSingleton<RedisStreamsPublisher>();
         services.TryAddSingleton<ITopologyDeclarer, RedisStreamsTopologyDeclarer>();
 
+        // Register default topology services for standalone usage (without AddTopology)
+        // These use TryAddSingleton so AddTopology can override them when called
+        RegisterDefaultTopologyServices(services);
+
         // Register publisher interfaces - create a wrapper that uses the provider
         services.TryAddSingleton<IMessagePublisher>(sp =>
             new RedisStreamsMessagePublisher(
@@ -180,6 +186,33 @@ public static class RedisStreamsServiceCollectionExtensions
         // which should be called after AddTopology.
 
         return new MessagingBuilder(services);
+    }
+
+    /// <summary>
+    /// Registers default topology services for standalone usage without AddTopology.
+    /// All services use TryAddSingleton so they can be overridden by AddTopology.
+    /// </summary>
+    private static void RegisterDefaultTopologyServices(IServiceCollection services)
+    {
+        // Default naming options with "default" service name
+        services.TryAddSingleton(new TopologyNamingOptions { ServiceName = "default" });
+
+        // Default naming convention using the registered options
+        services.TryAddSingleton<ITopologyNamingConvention>(sp =>
+            new DefaultTopologyNamingConvention(sp.GetRequiredService<TopologyNamingOptions>()));
+
+        // Default topology registry for caching topology definitions
+        services.TryAddSingleton<ITopologyRegistry, TopologyRegistry>();
+
+        // Default topology provider using convention-based naming
+        services.TryAddSingleton<ITopologyProvider>(sp =>
+            new ConventionBasedTopologyProvider(
+                sp.GetRequiredService<ITopologyNamingConvention>(),
+                sp.GetRequiredService<ITopologyRegistry>()));
+
+        // Default message routing resolver
+        services.TryAddSingleton<IMessageRoutingResolver>(sp =>
+            new MessageRoutingResolver(sp.GetRequiredService<ITopologyProvider>()));
     }
 
     /// <summary>

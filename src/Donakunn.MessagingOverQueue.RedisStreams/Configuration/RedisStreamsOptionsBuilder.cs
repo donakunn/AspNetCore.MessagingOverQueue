@@ -80,19 +80,23 @@ public sealed class RedisStreamsOptionsBuilder
     }
 
     /// <summary>
-    /// Configures consumer settings.
+    /// Configures consumer settings. Only explicitly provided values are updated,
+    /// allowing multiple calls to be composed without overwriting previous settings.
     /// </summary>
-    /// <param name="batchSize">Messages per batch.</param>
-    /// <param name="blockingTimeout">Blocking read timeout.</param>
-    /// <param name="maxPendingMessages">Max pending messages.</param>
+    /// <param name="batchSize">Messages per batch (default: 10).</param>
+    /// <param name="blockingTimeout">Polling interval when no messages are available (default: 5 seconds).</param>
+    /// <param name="maxPendingMessages">Max pending messages before backpressure (default: 1000).</param>
     public RedisStreamsOptionsBuilder ConfigureConsumer(
-        int batchSize = 10,
+        int? batchSize = null,
         TimeSpan? blockingTimeout = null,
-        int maxPendingMessages = 1000)
+        int? maxPendingMessages = null)
     {
-        _options.BatchSize = batchSize;
-        _options.BlockingTimeout = blockingTimeout ?? TimeSpan.FromSeconds(5);
-        _options.MaxPendingMessages = maxPendingMessages;
+        if (batchSize.HasValue)
+            _options.BatchSize = batchSize.Value;
+        if (blockingTimeout.HasValue)
+            _options.BlockingTimeout = blockingTimeout.Value;
+        if (maxPendingMessages.HasValue)
+            _options.MaxPendingMessages = maxPendingMessages.Value;
         return this;
     }
 
@@ -107,16 +111,19 @@ public sealed class RedisStreamsOptionsBuilder
     }
 
     /// <summary>
-    /// Configures message claiming for failed consumers.
+    /// Configures message claiming for failed consumers. Only explicitly provided values are updated,
+    /// allowing multiple calls to be composed without overwriting previous settings.
     /// </summary>
-    /// <param name="claimIdleTime">Time before message can be claimed.</param>
-    /// <param name="checkInterval">Interval between claim checks.</param>
+    /// <param name="claimIdleTime">Time before message can be claimed by another consumer.</param>
+    /// <param name="checkInterval">Interval between claim checks (default: 30 seconds).</param>
     public RedisStreamsOptionsBuilder ConfigureClaiming(
-        TimeSpan claimIdleTime,
+        TimeSpan? claimIdleTime = null,
         TimeSpan? checkInterval = null)
     {
-        _options.ClaimIdleTime = claimIdleTime;
-        _options.ClaimCheckInterval = checkInterval ?? TimeSpan.FromSeconds(30);
+        if (claimIdleTime.HasValue)
+            _options.ClaimIdleTime = claimIdleTime.Value;
+        if (checkInterval.HasValue)
+            _options.ClaimCheckInterval = checkInterval.Value;
         return this;
     }
 

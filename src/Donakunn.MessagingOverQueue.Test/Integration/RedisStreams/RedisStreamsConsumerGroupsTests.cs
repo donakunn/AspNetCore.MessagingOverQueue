@@ -73,14 +73,11 @@ public class RedisStreamsConsumerGroupsTests : RedisStreamsIntegrationTestBase
     }
 
     [Fact]
-    public async Task Independent_Consumer_Groups_Receive_Same_Messages()
+    public async Task Separate_Services_Have_Isolated_Streams()
     {
-        // Arrange - Create two separate services (different consumer groups)
-        var service1Handler = new ConcurrentBag<SimpleTestEvent>();
-        var service1Count = 0;
-        
-        var service2Handler = new ConcurrentBag<SimpleTestEvent>();
-        var service2Count = 0;
+        // Arrange - Create two separate services with isolated streams
+        // Each service has its own stream and consumer group
+        SimpleTestEventHandler.Reset();
 
         // Service 1
         using var host1 = await BuildHost(services =>
@@ -90,10 +87,12 @@ public class RedisStreamsConsumerGroupsTests : RedisStreamsIntegrationTestBase
             {
                 options.UseConnectionString(RedisConnectionString);
                 options.WithStreamPrefix(StreamPrefix);
+                options.ConfigureConsumer(batchSize: 10, blockingTimeout: TimeSpan.FromMilliseconds(100));
             })
             .AddTopology(topology => topology
                 .WithServiceName("service-1")
-                .ScanAssemblyContaining<SimpleTestEventHandler>());
+                .ScanAssemblyContaining<SimpleTestEventHandler>())
+            .AddRedisStreamsConsumerHostedService();
         });
 
         // Service 2
@@ -104,44 +103,43 @@ public class RedisStreamsConsumerGroupsTests : RedisStreamsIntegrationTestBase
             {
                 options.UseConnectionString(RedisConnectionString);
                 options.WithStreamPrefix(StreamPrefix);
+                options.ConfigureConsumer(batchSize: 10, blockingTimeout: TimeSpan.FromMilliseconds(100));
             })
             .AddTopology(topology => topology
                 .WithServiceName("service-2")
-                .ScanAssemblyContaining<SimpleTestEventHandler>());
+                .ScanAssemblyContaining<SimpleTestEventHandler>())
+            .AddRedisStreamsConsumerHostedService();
         });
 
-        // Use global handler for counting
-        SimpleTestEventHandler.Reset();
+        var publisher1 = host1.Services.GetRequiredService<IEventPublisher>();
+        var publisher2 = host2.Services.GetRequiredService<IEventPublisher>();
+        const int messageCount = 5;
 
-        var publisher = host1.Services.GetRequiredService<IEventPublisher>();
-        const int messageCount = 10;
-
-        // Act - Publish messages
+        // Act - Publish messages from each service to their respective streams
         for (int i = 0; i < messageCount; i++)
         {
-            await publisher.PublishAsync(new SimpleTestEvent { Value = $"Shared-{i}" });
+            await publisher1.PublishAsync(new SimpleTestEvent { Value = $"Service1-{i}" });
+            await publisher2.PublishAsync(new SimpleTestEvent { Value = $"Service2-{i}" });
         }
 
-        // Wait for both services to process (each should get all messages)
-        await WaitForConditionAsync(
-            async () =>
-            {
-                var stream1 = $"{StreamPrefix}:service-1.simple-test";
-                var stream2 = $"{StreamPrefix}:service-2.simple-test";
-                
-                var count1 = await GetStreamLengthAsync(stream1);
-                var count2 = await GetStreamLengthAsync(stream2);
-                
-                return count1 >= messageCount && count2 >= messageCount;
-            },
-            DefaultTimeout);
+        // Wait for all messages to be processed (messageCount * 2 total)
+        await SimpleTestEventHandler.WaitForCountAsync(messageCount * 2, DefaultTimeout);
 
-        // Assert - Both consumer groups should have access to all messages
+        // Assert - Each service has its own stream with its messages
         var stream1Key = $"{StreamPrefix}:service-1.simple-test";
         var stream2Key = $"{StreamPrefix}:service-2.simple-test";
 
-        Assert.True(await GetStreamLengthAsync(stream1Key) >= messageCount);
-        Assert.True(await GetStreamLengthAsync(stream2Key) >= messageCount);
+        var stream1Length = await GetStreamLengthAsync(stream1Key);
+        var stream2Length = await GetStreamLengthAsync(stream2Key);
+
+        Assert.Equal(messageCount, stream1Length);
+        Assert.Equal(messageCount, stream2Length);
+
+        // Verify messages were processed from both streams
+        var handledMessages = SimpleTestEventHandler.HandledMessages.ToList();
+        Assert.Equal(messageCount * 2, handledMessages.Count);
+        Assert.Equal(messageCount, handledMessages.Count(m => m.Value.StartsWith("Service1-")));
+        Assert.Equal(messageCount, handledMessages.Count(m => m.Value.StartsWith("Service2-")));
     }
 
     [Fact]

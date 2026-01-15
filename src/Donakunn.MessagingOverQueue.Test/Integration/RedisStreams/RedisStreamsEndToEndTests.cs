@@ -1,5 +1,6 @@
 using Donakunn.MessagingOverQueue.Abstractions.Publishing;
 using Donakunn.MessagingOverQueue.RedisStreams.DependencyInjection;
+using Donakunn.MessagingOverQueue.Topology.DependencyInjection;
 using MessagingOverQueue.Test.Integration.RedisStreams.Infrastructure;
 using MessagingOverQueue.Test.Integration.TestDoubles;
 using Microsoft.Extensions.DependencyInjection;
@@ -56,7 +57,7 @@ public class RedisStreamsEndToEndTests : RedisStreamsIntegrationTestBase
         // Assert
         Assert.Equal(messageCount, SimpleTestEventHandler.HandleCount);
         Assert.Equal(messageCount, SimpleTestEventHandler.HandledMessages.Count);
-        
+
         // Verify order preservation
         var messages = SimpleTestEventHandler.HandledMessages.ToList();
         for (int i = 0; i < messageCount; i++)
@@ -130,7 +131,7 @@ public class RedisStreamsEndToEndTests : RedisStreamsIntegrationTestBase
 
         var correlationId = Guid.NewGuid().ToString();
         var @event = new SimpleTestEvent { Value = "Correlated" };
-        
+
         // Set correlation ID
         var eventType = typeof(SimpleTestEvent);
         eventType.GetProperty("CorrelationId")?.SetValue(@event, correlationId);
@@ -161,9 +162,9 @@ public class RedisStreamsEndToEndTests : RedisStreamsIntegrationTestBase
             {
                 for (int i = 0; i < messagesPerPublisher; i++)
                 {
-                    await publisher.PublishAsync(new SimpleTestEvent 
-                    { 
-                        Value = $"Publisher-{publisherIndex}-Message-{i}" 
+                    await publisher.PublishAsync(new SimpleTestEvent
+                    {
+                        Value = $"Publisher-{publisherIndex}-Message-{i}"
                     });
                 }
             }));
@@ -195,10 +196,10 @@ public class RedisStreamsEndToEndTests : RedisStreamsIntegrationTestBase
         // Verify message structure
         var messages = await GetStreamMessagesAsync(streamKey);
         Assert.NotEmpty(messages);
-        
+
         var message = messages[0];
         var fields = message.Values.ToDictionary(v => v.Name.ToString(), v => v.Value.ToString());
-        
+
         Assert.True(fields.ContainsKey("message-id"));
         Assert.True(fields.ContainsKey("message-type"));
         Assert.True(fields.ContainsKey("body"));
@@ -210,10 +211,10 @@ public class RedisStreamsEndToEndTests : RedisStreamsIntegrationTestBase
         // Arrange
         SimpleTestEventHandler.Reset();
         ComplexTestEventHandler.Reset();
-        
-        using var host = await BuildHost<SimpleTestEventHandler>(options => 
+
+        using var host = await BuildHost<SimpleTestEventHandler>(options =>
             options.WithStreamPrefix(StreamPrefix));
-        
+
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
 
         // Act
@@ -238,20 +239,20 @@ public class RedisStreamsEndToEndTests : RedisStreamsIntegrationTestBase
         SlowProcessingEventHandler.Reset();
         using var host = await BuildHost<SlowProcessingEventHandler>(options =>
             options.ConfigureConsumer(batchSize: 10));
-        
+
         var publisher = host.Services.GetRequiredService<IEventPublisher>();
         const int messageCount = 10;
 
         // Act - Publish slow processing messages
         var publishTasks = Enumerable.Range(0, messageCount)
-            .Select(i => publisher.PublishAsync(new SlowProcessingEvent 
-            { 
+            .Select(i => publisher.PublishAsync(new SlowProcessingEvent
+            {
                 Value = $"Slow-{i}",
                 ProcessingTime = TimeSpan.FromMilliseconds(200)
             }));
 
         await Task.WhenAll(publishTasks);
-        
+
         // Should process concurrently, so total time < sequential time
         var sw = System.Diagnostics.Stopwatch.StartNew();
         await SlowProcessingEventHandler.WaitForCountAsync(messageCount, TimeSpan.FromSeconds(30));
@@ -259,7 +260,7 @@ public class RedisStreamsEndToEndTests : RedisStreamsIntegrationTestBase
 
         // Assert - With 5 concurrent consumers and 200ms each, 10 messages should take ~400ms
         // Sequential would take 2000ms, so verify it's much faster
-        Assert.True(sw.ElapsedMilliseconds < 1500, 
+        Assert.True(sw.ElapsedMilliseconds < 1500,
             $"Processing took {sw.ElapsedMilliseconds}ms, expected concurrent processing to be faster");
         Assert.Equal(messageCount, SlowProcessingEventHandler.HandleCount);
     }
@@ -291,8 +292,9 @@ public class RedisStreamsEndToEndTests : RedisStreamsIntegrationTestBase
     {
         // Arrange
         SimpleTestEventHandler.Reset();
-        
-        // Start host WITHOUT consumer to publish first
+
+        // Start host with publisher only (no consumer hosted service)
+        // Must include topology so publisher knows the correct stream name
         using var publisherHost = await BuildHost(services =>
         {
             services.AddLogging();
@@ -300,14 +302,18 @@ public class RedisStreamsEndToEndTests : RedisStreamsIntegrationTestBase
             {
                 options.UseConnectionString(RedisConnectionString);
                 options.WithStreamPrefix(StreamPrefix);
-            });
+            })
+            .AddTopology(topology => topology
+                .WithServiceName("test-service")
+                .ScanAssemblyContaining<SimpleTestEventHandler>());
+            // Note: NOT adding consumer hosted service - just the publisher
         });
 
         var publisher = publisherHost.Services.GetRequiredService<IEventPublisher>();
 
         // Act - Publish before consumer starts
         await publisher.PublishAsync(new SimpleTestEvent { Value = "Pre-consumer" });
-        
+
         // Small delay to ensure message is in stream
         await Task.Delay(500);
 
