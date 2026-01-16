@@ -190,19 +190,20 @@ public static class RedisStreamsServiceCollectionExtensions
 
     /// <summary>
     /// Registers default topology services for standalone usage without AddTopology.
-    /// All services use TryAddSingleton so they can be overridden by AddTopology.
+    /// These services are used only when AddTopology is NOT called.
+    /// Note: TopologyNamingOptions and ITopologyNamingConvention are NOT registered here
+    /// to avoid conflicts with AddTopology configuration. They are lazily created
+    /// with defaults only when needed and AddTopology hasn't been called.
     /// </summary>
     private static void RegisterDefaultTopologyServices(IServiceCollection services)
     {
-        // Default naming options with "default" service name
-        services.TryAddSingleton(new TopologyNamingOptions { ServiceName = "default" });
-
-        // Default naming convention using the registered options
-        services.TryAddSingleton<ITopologyNamingConvention>(sp =>
-            new DefaultTopologyNamingConvention(sp.GetRequiredService<TopologyNamingOptions>()));
-
         // Default topology registry for caching topology definitions
         services.TryAddSingleton<ITopologyRegistry, TopologyRegistry>();
+
+        // Default naming convention - only created if AddTopology hasn't registered one
+        // Uses lazy initialization with default options to avoid registration conflicts
+        services.TryAddSingleton<ITopologyNamingConvention>(_ =>
+            new DefaultTopologyNamingConvention(new TopologyNamingOptions { ServiceName = "default" }));
 
         // Default topology provider using convention-based naming
         services.TryAddSingleton<ITopologyProvider>(sp =>
