@@ -1,3 +1,4 @@
+using Donakunn.MessagingOverQueue.Consuming.Middleware;
 using Donakunn.MessagingOverQueue.RedisStreams.Configuration;
 using Donakunn.MessagingOverQueue.RedisStreams.DependencyInjection;
 using Donakunn.MessagingOverQueue.Topology.DependencyInjection;
@@ -190,12 +191,21 @@ public abstract class RedisStreamsIntegrationTestBase : IAsyncLifetime
     /// </summary>
     protected async Task<IHost> BuildHost<THandlerMarker>(Action<RedisStreamsOptionsBuilder>? configureRedis = null)
     {
+        // Capture the test context to register in the host
+        var testContext = _testContext;
+
         var hostBuilder = Host.CreateDefaultBuilder()
             .ConfigureServices((_, services) =>
             {
                 services.AddLogging(builder => builder
                     .SetMinimumLevel(LogLevel.Debug)
                     .AddDebug());
+
+                // Register test context as singleton so it can be resolved by middleware
+                services.AddSingleton(testContext);
+
+                // Add middleware to set the test context before each message is processed
+                services.AddSingleton<IConsumeMiddleware, TestContextPropagationMiddleware>();
 
                 services.AddRedisStreamsMessaging(options =>
                 {
@@ -358,4 +368,27 @@ public abstract class RedisStreamsIntegrationTestBase : IAsyncLifetime
     }
 
     #endregion
+}
+
+/// <summary>
+/// Middleware that propagates the test execution context to the consumer's async flow.
+/// This ensures test isolation when handlers use TestExecutionContextAccessor.
+/// </summary>
+internal sealed class TestContextPropagationMiddleware(TestExecutionContext testContext) : IConsumeMiddleware
+{
+    public async Task InvokeAsync(ConsumeContext context, Func<ConsumeContext, CancellationToken, Task> next, CancellationToken cancellationToken)
+    {
+        // Set the test context in AsyncLocal before invoking the handler
+        var previousContext = TestExecutionContextAccessor.Current;
+        TestExecutionContextAccessor.Current = testContext;
+        try
+        {
+            await next(context, cancellationToken);
+        }
+        finally
+        {
+            // Restore previous context (important for nested scenarios)
+            TestExecutionContextAccessor.Current = previousContext;
+        }
+    }
 }

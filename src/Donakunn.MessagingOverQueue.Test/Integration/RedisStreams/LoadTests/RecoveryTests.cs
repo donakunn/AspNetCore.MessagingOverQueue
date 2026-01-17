@@ -32,8 +32,8 @@ public class RecoveryTests : LoadTestBase
         LoadTestEventHandler.SetMetricsCollector(Metrics);
 
         var pendingCount = Config.RecoveryTestPendingMessageCount;
-        var streamKey = $"{StreamPrefix}:test-service.load-test-event";
-        var consumerGroup = "test-service.load-test-event";
+        var streamKey = $"{StreamPrefix}:test-service.load-test";
+        var consumerGroup = "test-service.load-test";
 
         Reporter.WriteLine($"Phase 1: Publishing {pendingCount} messages without consumer...");
 
@@ -128,7 +128,14 @@ public class RecoveryTests : LoadTestBase
         Reporter.WriteLine($"Recovery Time: {recoveryStart.Elapsed:mm\\:ss\\.fff}");
         Reporter.WriteLine($"Recovery Rate: {recoveryRate:N1} msg/sec");
 
-        Assert.Equal(pendingCount, LoadTestEventHandler.HandleCount);
+        // Recovery with claiming may result in some duplicate deliveries (at-least-once semantics)
+        // Verify no message loss and reasonable duplicate rate (< 1%)
+        Assert.True(
+            LoadTestEventHandler.HandleCount >= pendingCount,
+            $"Message loss detected: expected at least {pendingCount}, got {LoadTestEventHandler.HandleCount}");
+        Assert.True(
+            LoadTestEventHandler.HandleCount <= pendingCount * 1.01,
+            $"Excessive duplicates: expected at most {pendingCount * 1.01:N0}, got {LoadTestEventHandler.HandleCount}");
         Assert.True(
             recoveryStart.Elapsed < Config.RecoveryTestTimeout,
             $"Recovery took {recoveryStart.Elapsed}, expected under {Config.RecoveryTestTimeout}");
