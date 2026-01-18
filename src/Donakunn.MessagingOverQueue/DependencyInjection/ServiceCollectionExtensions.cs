@@ -184,6 +184,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IMessagePublisher>(sp => sp.GetRequiredService<RabbitMqPublisher>());
         services.TryAddSingleton<IEventPublisher>(sp => sp.GetRequiredService<RabbitMqPublisher>());
         services.TryAddSingleton<ICommandSender>(sp => sp.GetRequiredService<RabbitMqPublisher>());
+        services.TryAddSingleton<IInternalPublisher>(sp => sp.GetRequiredService<RabbitMqPublisher>());
 
         // Publish middleware
         services.AddSingleton<IPublishMiddleware, LoggingMiddleware>();
@@ -353,6 +354,11 @@ public interface IMessagingBuilder
     /// The service collection.
     /// </summary>
     IServiceCollection Services { get; }
+
+    /// <summary>
+    /// Indicates whether a queue provider has been configured.
+    /// </summary>
+    bool HasQueueProvider { get; }
 }
 
 /// <summary>
@@ -361,6 +367,11 @@ public interface IMessagingBuilder
 internal sealed class MessagingBuilder(IServiceCollection services) : IMessagingBuilder
 {
     public IServiceCollection Services { get; } = services;
+
+    /// <summary>
+    /// Indicates whether a queue provider has been configured.
+    /// </summary>
+    public bool HasQueueProvider { get; internal set; }
 }
 
 /// <summary>

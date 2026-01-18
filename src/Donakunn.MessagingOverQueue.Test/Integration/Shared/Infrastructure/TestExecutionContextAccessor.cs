@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.Test.Integration.Infrastructure;
+namespace MessagingOverQueue.Test.Integration.Shared.Infrastructure;
 
 /// <summary>
 /// Provides access to the current test execution context.

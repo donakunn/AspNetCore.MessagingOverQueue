@@ -1,16 +1,16 @@
 using Donakunn.MessagingOverQueue.Abstractions.Consuming;
 using Donakunn.MessagingOverQueue.Abstractions.Messages;
 using Donakunn.MessagingOverQueue.Topology.Attributes;
-using MessagingOverQueue.Test.Integration.Infrastructure;
+using MessagingOverQueue.Test.Integration.Shared.Infrastructure;
 
-namespace MessagingOverQueue.Test.Integration.TestDoubles;
+namespace MessagingOverQueue.Test.Integration.Shared.TestDoubles;
 
 #region Test Events
 
 /// <summary>
 /// Simple test event for basic handler tests.
 /// </summary>
-public class SimpleTestEvent : Event
+public record SimpleTestEvent : Event
 {
     public string Value { get; set; } = string.Empty;
 }
@@ -18,7 +18,7 @@ public class SimpleTestEvent : Event
 /// <summary>
 /// Test event with complex payload.
 /// </summary>
-public class ComplexTestEvent : Event
+public record ComplexTestEvent : Event
 {
     public string Name { get; set; } = string.Empty;
     public int Count { get; set; }
@@ -31,7 +31,7 @@ public class ComplexTestEvent : Event
 /// <summary>
 /// Event for testing slow processing.
 /// </summary>
-public class SlowProcessingEvent : Event
+public record SlowProcessingEvent : Event
 {
     public TimeSpan ProcessingTime { get; set; } = TimeSpan.FromMilliseconds(100);
     public string Value { get; set; } = string.Empty;
@@ -40,7 +40,7 @@ public class SlowProcessingEvent : Event
 /// <summary>
 /// Event for testing error handling.
 /// </summary>
-public class FailingEvent : Event
+public record FailingEvent : Event
 {
     public bool ShouldFail { get; set; } = true;
     public string FailureMessage { get; set; } = "Intentional test failure";
@@ -49,7 +49,7 @@ public class FailingEvent : Event
 /// <summary>
 /// Event for concurrency testing.
 /// </summary>
-public class ConcurrencyTestEvent : Event
+public record ConcurrencyTestEvent : Event
 {
     public int Index { get; set; }
     public string ThreadInfo { get; set; } = string.Empty;
@@ -60,7 +60,7 @@ public class ConcurrencyTestEvent : Event
 /// </summary>
 [Queue("custom-queue", QueueType = QueueType.Classic)]
 [RoutingKey("test.custom")]
-public class CustomQueueEvent : Event
+public record CustomQueueEvent : Event
 {
     public string Data { get; set; } = string.Empty;
 }
@@ -68,7 +68,7 @@ public class CustomQueueEvent : Event
 /// <summary>
 /// High priority event.
 /// </summary>
-public class HighPriorityEvent : Event
+public record HighPriorityEvent : Event
 {
     public int Priority { get; set; } = 10;
     public string Message { get; set; } = string.Empty;
@@ -77,7 +77,7 @@ public class HighPriorityEvent : Event
 /// <summary>
 /// Event for testing multiple handlers.
 /// </summary>
-public class MultiHandlerEvent : Event
+public record MultiHandlerEvent : Event
 {
     public string Payload { get; set; } = string.Empty;
 }
@@ -85,7 +85,7 @@ public class MultiHandlerEvent : Event
 /// <summary>
 /// Event for ordering tests.
 /// </summary>
-public class OrderedEvent : Event
+public record OrderedEvent : Event
 {
     public int Sequence { get; set; }
     public DateTime EnqueuedAt { get; set; } = DateTime.UtcNow;
@@ -94,7 +94,7 @@ public class OrderedEvent : Event
 /// <summary>
 /// Event for testing idempotency.
 /// </summary>
-public class IdempotentTestEvent : Event
+public record IdempotentTestEvent : Event
 {
     public string Value { get; set; } = string.Empty;
 }
@@ -106,7 +106,7 @@ public class IdempotentTestEvent : Event
 /// <summary>
 /// Simple test command.
 /// </summary>
-public class SimpleTestCommand : Command
+public record SimpleTestCommand : Command
 {
     public string Action { get; set; } = string.Empty;
 }
@@ -114,7 +114,7 @@ public class SimpleTestCommand : Command
 /// <summary>
 /// Command for testing command handling.
 /// </summary>
-public class ProcessOrderCommand : Command
+public record ProcessOrderCommand : Command
 {
     public Guid OrderId { get; set; }
     public string CustomerName { get; set; } = string.Empty;
@@ -133,7 +133,7 @@ public class SimpleTestEventHandler : IMessageHandler<SimpleTestEvent>
     private const string HandlerKey = nameof(SimpleTestEventHandler);
 
     public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
-    public static IReadOnlyCollection<SimpleTestEvent> HandledMessages => 
+    public static IReadOnlyCollection<SimpleTestEvent> HandledMessages =>
         TestExecutionContextAccessor.GetRequired().GetCollector<SimpleTestEvent>(HandlerKey).Messages;
 
     public static void Reset()
@@ -163,7 +163,7 @@ public class ComplexTestEventHandler : IMessageHandler<ComplexTestEvent>
     private const string HandlerKey = nameof(ComplexTestEventHandler);
 
     public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
-    public static IReadOnlyCollection<ComplexTestEvent> HandledMessages => 
+    public static IReadOnlyCollection<ComplexTestEvent> HandledMessages =>
         TestExecutionContextAccessor.GetRequired().GetCollector<ComplexTestEvent>(HandlerKey).Messages;
 
     public static void Reset()
@@ -196,7 +196,7 @@ public class SlowProcessingEventHandler : IMessageHandler<SlowProcessingEvent>
     private const string HandlerKey = nameof(SlowProcessingEventHandler);
 
     public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
-    public static IReadOnlyCollection<SlowProcessingEvent> HandledMessages => 
+    public static IReadOnlyCollection<SlowProcessingEvent> HandledMessages =>
         TestExecutionContextAccessor.GetRequired().GetCollector<SlowProcessingEvent>(HandlerKey).Messages;
 
     public static void Reset()
@@ -228,7 +228,7 @@ public class FailingEventHandler : IMessageHandler<FailingEvent>
 
     public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
     public static int FailureCount => TestExecutionContextAccessor.GetRequired().GetCounter(FailureCountKey).Count;
-    public static IReadOnlyCollection<Exception> ThrownExceptions => 
+    public static IReadOnlyCollection<Exception> ThrownExceptions =>
         TestExecutionContextAccessor.GetRequired().GetExceptionCollector(HandlerKey).Exceptions;
 
     public static void Reset()
@@ -266,9 +266,9 @@ public class ConcurrencyTestEventHandler : IMessageHandler<ConcurrencyTestEvent>
     private const string CurrentConcurrentKey = HandlerKey + "_CurrentConcurrent";
 
     public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
-    public static int MaxConcurrentObserved => 
+    public static int MaxConcurrentObserved =>
         TestExecutionContextAccessor.GetRequired().GetCustomData<int>(MaxConcurrentKey);
-    public static IReadOnlyCollection<ConcurrencyTestEvent> HandledMessages => 
+    public static IReadOnlyCollection<ConcurrencyTestEvent> HandledMessages =>
         TestExecutionContextAccessor.GetRequired().GetCollector<ConcurrencyTestEvent>(HandlerKey).Messages;
 
     public static void Reset()
@@ -318,7 +318,7 @@ public class MultiHandlerEventHandlerA : IMessageHandler<MultiHandlerEvent>
     private const string HandlerKey = nameof(MultiHandlerEventHandlerA);
 
     public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
-    public static IReadOnlyCollection<MultiHandlerEvent> HandledMessages => 
+    public static IReadOnlyCollection<MultiHandlerEvent> HandledMessages =>
         TestExecutionContextAccessor.GetRequired().GetCollector<MultiHandlerEvent>(HandlerKey).Messages;
 
     public static void Reset()
@@ -345,7 +345,7 @@ public class MultiHandlerEventHandlerB : IMessageHandler<MultiHandlerEvent>
     private const string HandlerKey = nameof(MultiHandlerEventHandlerB);
 
     public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
-    public static IReadOnlyCollection<MultiHandlerEvent> HandledMessages => 
+    public static IReadOnlyCollection<MultiHandlerEvent> HandledMessages =>
         TestExecutionContextAccessor.GetRequired().GetCollector<MultiHandlerEvent>(HandlerKey).Messages;
 
     public static void Reset()
@@ -372,7 +372,7 @@ public class OrderedEventHandler : IMessageHandler<OrderedEvent>
     private const string HandlerKey = nameof(OrderedEventHandler);
 
     public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
-    public static IReadOnlyCollection<(int Sequence, DateTime ProcessedAt)> ProcessOrder => 
+    public static IReadOnlyCollection<(int Sequence, DateTime ProcessedAt)> ProcessOrder =>
         TestExecutionContextAccessor.GetRequired().GetCollector<(int Sequence, DateTime ProcessedAt)>(HandlerKey).Messages;
 
     public static void Reset()
@@ -402,7 +402,7 @@ public class SimpleTestCommandHandler : IMessageHandler<SimpleTestCommand>
     private const string HandlerKey = nameof(SimpleTestCommandHandler);
 
     public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
-    public static IReadOnlyCollection<SimpleTestCommand> HandledCommands => 
+    public static IReadOnlyCollection<SimpleTestCommand> HandledCommands =>
         TestExecutionContextAccessor.GetRequired().GetCollector<SimpleTestCommand>(HandlerKey).Messages;
 
     public static void Reset()
@@ -432,7 +432,7 @@ public class ProcessOrderCommandHandler : IMessageHandler<ProcessOrderCommand>
     private const string HandlerKey = nameof(ProcessOrderCommandHandler);
 
     public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
-    public static IReadOnlyCollection<ProcessOrderCommand> ProcessedOrders => 
+    public static IReadOnlyCollection<ProcessOrderCommand> ProcessedOrders =>
         TestExecutionContextAccessor.GetRequired().GetCollector<ProcessOrderCommand>(HandlerKey).Messages;
 
     public static void Reset()
@@ -462,7 +462,7 @@ public class IdempotentTestEventHandler : IMessageHandler<IdempotentTestEvent>
     private const string HandlerKey = nameof(IdempotentTestEventHandler);
 
     public static int HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
-    public static IReadOnlyCollection<IdempotentTestEvent> HandledMessages => 
+    public static IReadOnlyCollection<IdempotentTestEvent> HandledMessages =>
         TestExecutionContextAccessor.GetRequired().GetCollector<IdempotentTestEvent>(HandlerKey).Messages;
 
     public static void Reset()

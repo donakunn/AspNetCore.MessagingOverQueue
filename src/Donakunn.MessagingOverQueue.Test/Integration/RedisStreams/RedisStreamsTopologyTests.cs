@@ -2,9 +2,9 @@ using Donakunn.MessagingOverQueue.Abstractions.Consuming;
 using Donakunn.MessagingOverQueue.Abstractions.Publishing;
 using Donakunn.MessagingOverQueue.RedisStreams.DependencyInjection;
 using Donakunn.MessagingOverQueue.Topology.DependencyInjection;
-using MessagingOverQueue.Test.Integration.Infrastructure;
+using MessagingOverQueue.Test.Integration.Shared.Infrastructure;
 using MessagingOverQueue.Test.Integration.RedisStreams.Infrastructure;
-using MessagingOverQueue.Test.Integration.TestDoubles;
+using MessagingOverQueue.Test.Integration.Shared.TestDoubles;
 using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
 

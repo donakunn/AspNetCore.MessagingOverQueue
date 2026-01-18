@@ -6,7 +6,7 @@ namespace Donakunn.MessagingOverQueue.Consuming.Middleware;
 /// <summary>
 /// Middleware that logs consume operations.
 /// </summary>
-public class ConsumeLoggingMiddleware : IConsumeMiddleware
+public class ConsumeLoggingMiddleware : IOrderedConsumeMiddleware
 {
     private readonly ILogger<ConsumeLoggingMiddleware> _logger;
 
@@ -14,6 +14,9 @@ public class ConsumeLoggingMiddleware : IConsumeMiddleware
     {
         _logger = logger;
     }
+
+    /// <inheritdoc />
+    public int Order => MiddlewareOrder.Logging;
 
     public async Task InvokeAsync(ConsumeContext context, Func<ConsumeContext, CancellationToken, Task> next, CancellationToken cancellationToken)
     {

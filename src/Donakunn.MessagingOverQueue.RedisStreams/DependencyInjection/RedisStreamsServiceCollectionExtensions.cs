@@ -132,6 +132,7 @@ public static class RedisStreamsServiceCollectionExtensions
 
         // Redis Streams specific services
         services.TryAddSingleton<RedisStreamsPublisher>();
+        services.TryAddSingleton<IInternalPublisher>(sp => sp.GetRequiredService<RedisStreamsPublisher>());
         services.TryAddSingleton<ITopologyDeclarer, RedisStreamsTopologyDeclarer>();
 
         // Register default topology services for standalone usage (without AddTopology)
@@ -267,4 +268,9 @@ internal sealed class MessagingBuilder : IMessagingBuilder
     }
 
     public IServiceCollection Services { get; }
+
+    /// <summary>
+    /// Indicates whether a queue provider has been configured.
+    /// </summary>
+    public bool HasQueueProvider { get; internal set; }
 }

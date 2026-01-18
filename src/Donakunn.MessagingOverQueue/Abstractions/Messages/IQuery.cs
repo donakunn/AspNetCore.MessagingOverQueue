@@ -9,10 +9,10 @@ public interface IQuery<TResult> : IMessage
 }
 
 /// <summary>
-/// Base class for query messages.
+/// Base record for query messages.
 /// </summary>
 /// <typeparam name="TResult">The type of the expected result.</typeparam>
-public abstract class Query<TResult> : MessageBase, IQuery<TResult>
+public abstract record Query<TResult> : MessageBase, IQuery<TResult>
 {
 }
 

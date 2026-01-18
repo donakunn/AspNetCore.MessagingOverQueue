@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace MessagingOverQueue.Test.Integration.Infrastructure;
+namespace MessagingOverQueue.Test.Integration.Shared.Infrastructure;
 
 /// <summary>
 /// Provides isolated execution context for test handlers to avoid shared state issues in parallel test execution.

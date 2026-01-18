@@ -2,13 +2,12 @@ using Donakunn.MessagingOverQueue.Consuming.Middleware;
 using Donakunn.MessagingOverQueue.RedisStreams.Configuration;
 using Donakunn.MessagingOverQueue.RedisStreams.DependencyInjection;
 using Donakunn.MessagingOverQueue.Topology.DependencyInjection;
-using MessagingOverQueue.Test.Integration.Infrastructure;
+using MessagingOverQueue.Test.Integration.Shared.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using Testcontainers.Redis;
-using static Donakunn.MessagingOverQueue.Topology.DependencyInjection.TopologyServiceCollectionExtensions;
 
 namespace MessagingOverQueue.Test.Integration.RedisStreams.Infrastructure;
 

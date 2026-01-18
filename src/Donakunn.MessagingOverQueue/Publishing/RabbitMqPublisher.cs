@@ -1,6 +1,7 @@
 using Donakunn.MessagingOverQueue.Abstractions.Messages;
 using Donakunn.MessagingOverQueue.Abstractions.Publishing;
 using Donakunn.MessagingOverQueue.Connection;
+using Donakunn.MessagingOverQueue.Providers;
 using Donakunn.MessagingOverQueue.Publishing.Middleware;
 using Donakunn.MessagingOverQueue.Topology;
 using Microsoft.Extensions.Logging;
@@ -15,7 +16,7 @@ public class RabbitMqPublisher(
     IRabbitMqConnectionPool connectionPool,
     IEnumerable<IPublishMiddleware> middlewares,
     IMessageRoutingResolver routingResolver,
-    ILogger<RabbitMqPublisher> logger) : IMessagePublisher, IEventPublisher, ICommandSender
+    ILogger<RabbitMqPublisher> logger) : IMessagePublisher, IEventPublisher, ICommandSender, IInternalPublisher
 {
     public Task PublishAsync<T>(T message, string? exchangeName = null, string? routingKey = null, CancellationToken cancellationToken = default) where T : IMessage
     {
@@ -75,6 +76,10 @@ public class RabbitMqPublisher(
         // Commands are sent directly to queue using default exchange
         return PublishAsync(command, string.Empty, queueName, cancellationToken);
     }
+
+    /// <inheritdoc />
+    Task IInternalPublisher.PublishAsync(PublishContext context, CancellationToken cancellationToken)
+        => PublishToRabbitMqAsync(context, cancellationToken);
 
     /// <summary>
     /// Publishes a message directly to RabbitMQ.
