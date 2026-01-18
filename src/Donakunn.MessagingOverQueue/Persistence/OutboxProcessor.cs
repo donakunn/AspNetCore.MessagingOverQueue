@@ -1,10 +1,8 @@
-using Donakunn.MessagingOverQueue.Abstractions.Publishing;
 using Donakunn.MessagingOverQueue.Configuration.Options;
 using Donakunn.MessagingOverQueue.Persistence.Entities;
 using Donakunn.MessagingOverQueue.Persistence.Providers;
 using Donakunn.MessagingOverQueue.Persistence.Repositories;
-using Donakunn.MessagingOverQueue.Publishing;
-using Microsoft.Extensions.DependencyInjection;
+using Donakunn.MessagingOverQueue.Providers;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -20,7 +18,7 @@ public sealed class OutboxProcessor : BackgroundService
     private readonly IOutboxRepository _repository;
     private readonly IInboxRepository _inboxRepository;
     private readonly IMessageStoreProvider _provider;
-    private readonly IMessagePublisher _publisher;
+    private readonly IInternalPublisher _internalPublisher;
     private readonly OutboxOptions _options;
     private readonly ILogger<OutboxProcessor> _logger;
 
@@ -30,14 +28,14 @@ public sealed class OutboxProcessor : BackgroundService
         IOutboxRepository repository,
         IInboxRepository inboxRepository,
         IMessageStoreProvider provider,
-        IMessagePublisher publisher,
+        IInternalPublisher internalPublisher,
         IOptions<OutboxOptions> options,
         ILogger<OutboxProcessor> logger)
     {
         _repository = repository;
         _inboxRepository = inboxRepository;
         _provider = provider;
-        _publisher = publisher;
+        _internalPublisher = internalPublisher;
         _options = options.Value;
         _logger = logger;
     }
@@ -160,6 +158,7 @@ public sealed class OutboxProcessor : BackgroundService
             Body = message.Payload,
             ExchangeName = message.ExchangeName,
             RoutingKey = message.RoutingKey,
+            QueueName = message.RoutingKey, // For Redis Streams, use routing key as queue/stream name
             Persistent = true,
             ContentType = "application/json"
         };
@@ -187,14 +186,7 @@ public sealed class OutboxProcessor : BackgroundService
         context.Headers["message-type"] = message.MessageType;
         context.Headers["message-id"] = message.Id.ToString();
 
-        if (_publisher is RabbitMqPublisher directPublisher)
-        {
-            await directPublisher.PublishToRabbitMqAsync(context, cancellationToken);
-        }
-        else
-        {
-            throw new InvalidOperationException("Publisher does not support raw publishing.");
-        }
+        await _internalPublisher.PublishAsync(context, cancellationToken);
     }
 
     private async Task CleanupAsync(CancellationToken cancellationToken)

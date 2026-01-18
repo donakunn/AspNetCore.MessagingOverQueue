@@ -28,19 +28,12 @@ public class IdempotencyMiddleware(
         Func<ConsumeContext, CancellationToken, Task> next,
         CancellationToken cancellationToken)
     {
-        if (context.Message == null)
-        {
-            await next(context, cancellationToken);
-            return;
-        }
-
-        // Store the inbox repository and logger in context for use by IdempotentHandlerInvoker
+        // Store the inbox repository and logger in context for use by HandlerInvoker.
+        // This must happen BEFORE the null check because IdempotencyMiddleware runs before
+        // DeserializationMiddleware, so context.Message is always null at this point.
+        // The actual idempotency check happens in HandlerInvoker after deserialization.
         context.Data[InboxRepositoryKey] = inboxRepository;
         context.Data[LoggerKey] = logger;
-
-        logger.LogDebug(
-            "Idempotency middleware enabled for message {MessageId}",
-            context.Message.Id);
 
         await next(context, cancellationToken);
     }

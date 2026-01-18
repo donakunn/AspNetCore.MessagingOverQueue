@@ -120,7 +120,9 @@ public class RedisStreamsPersistenceTests : IAsyncLifetime
             persistence.WithIdempotency(opts => opts.RetentionPeriod = TimeSpan.FromDays(14));
         });
 
-        var provider = host.Services;
+        // Assert - Use scope for scoped services
+        using var scope = host.Services.CreateScope();
+        var provider = scope.ServiceProvider;
 
         // Assert - Verify idempotency middleware is registered
         var middlewares = provider.GetServices<IConsumeMiddleware>().ToList();
@@ -151,7 +153,9 @@ public class RedisStreamsPersistenceTests : IAsyncLifetime
             });
         });
 
-        var provider = host.Services;
+        // Assert - Use scope for scoped services
+        using var scope = host.Services.CreateScope();
+        var provider = scope.ServiceProvider;
 
         // Assert - Verify all services are registered
         Assert.NotNull(provider.GetService<IOutboxRepository>());

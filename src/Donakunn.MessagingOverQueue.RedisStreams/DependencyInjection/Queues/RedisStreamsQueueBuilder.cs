@@ -103,6 +103,7 @@ internal sealed class RedisStreamsQueueBuilder : IRedisStreamsQueueBuilder
 
         // Redis Streams specific services
         Services.TryAddSingleton<RedisStreamsPublisher>();
+        Services.TryAddSingleton<IInternalPublisher>(sp => sp.GetRequiredService<RedisStreamsPublisher>());
         Services.TryAddSingleton<ITopologyDeclarer, RedisStreamsTopologyDeclarer>();
 
         // Register default topology services for standalone usage (without AddTopology)
