@@ -267,4 +267,9 @@ internal sealed class MessagingBuilder : IMessagingBuilder
     }
 
     public IServiceCollection Services { get; }
+
+    /// <summary>
+    /// Indicates whether a queue provider has been configured.
+    /// </summary>
+    public bool HasQueueProvider { get; internal set; }
 }

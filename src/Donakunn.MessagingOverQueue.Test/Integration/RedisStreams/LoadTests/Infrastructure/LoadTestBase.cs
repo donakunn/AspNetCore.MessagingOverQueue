@@ -1,8 +1,18 @@
 using System.Diagnostics;
 using Donakunn.MessagingOverQueue.Abstractions.Publishing;
+using Donakunn.MessagingOverQueue.Consuming.Middleware;
+using Donakunn.MessagingOverQueue.DependencyInjection;
+using Donakunn.MessagingOverQueue.DependencyInjection.Persistence;
+using Donakunn.MessagingOverQueue.DependencyInjection.Resilience;
+using Donakunn.MessagingOverQueue.Persistence.Providers;
+using Donakunn.MessagingOverQueue.RedisStreams.DependencyInjection.Queues;
 using MessagingOverQueue.Test.Integration.RedisStreams.Infrastructure;
 using MessagingOverQueue.Test.Integration.RedisStreams.LoadTests.Metrics;
 using MessagingOverQueue.Test.Integration.RedisStreams.LoadTests.TestMessages;
+using MessagingOverQueue.Test.Integration.Shared.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Testcontainers.MsSql;
 using Xunit.Abstractions;
 
 namespace MessagingOverQueue.Test.Integration.RedisStreams.LoadTests.Infrastructure;
@@ -15,6 +25,17 @@ public abstract class LoadTestBase : RedisStreamsIntegrationTestBase
 {
     private readonly ITestOutputHelper _output;
     private Task? _periodicReportingTask;
+    private MsSqlContainer? _sqlContainer;
+
+    /// <summary>
+    /// SQL Server connection string (available when persistence features are enabled).
+    /// </summary>
+    protected string? SqlConnectionString { get; private set; }
+
+    /// <summary>
+    /// Feature configuration for this test run.
+    /// </summary>
+    protected FeatureConfiguration Features { get; private set; } = FeatureConfiguration.None;
 
     /// <summary>
     /// Load test configuration loaded from environment or defaults.
@@ -40,6 +61,7 @@ public abstract class LoadTestBase : RedisStreamsIntegrationTestBase
     {
         _output = output;
         Config = LoadTestConfiguration.FromEnvironment();
+        Features = Config.Features;
         Metrics = new MetricsAggregator(Config.MetricsSamplingWindow);
         Reporter = new LoadTestReporter(output);
     }
@@ -75,6 +97,14 @@ public abstract class LoadTestBase : RedisStreamsIntegrationTestBase
         }
 
         TestCancellation.Dispose();
+
+        if (_sqlContainer != null)
+        {
+            await _sqlContainer.DisposeAsync();
+            _sqlContainer = null;
+            SqlConnectionString = null;
+        }
+
         await base.OnDisposeAsync();
     }
 
@@ -256,6 +286,211 @@ public abstract class LoadTestBase : RedisStreamsIntegrationTestBase
                     Thread.SpinWait(100);
                 }
             }
+        }
+    }
+
+    #region SQL Server Container Management
+
+    /// <summary>
+    /// Ensures SQL Server container is available for persistence features.
+    /// </summary>
+    protected async Task EnsureSqlServerAsync()
+    {
+        if (_sqlContainer != null) return;
+
+        Reporter.WriteLine("Starting SQL Server container for persistence features...");
+
+        _sqlContainer = new MsSqlBuilder()
+            .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+            .WithPassword("YourStrong@Passw0rd")
+            .Build();
+
+        await _sqlContainer.StartAsync();
+        SqlConnectionString = _sqlContainer.GetConnectionString();
+
+        Reporter.WriteLine($"SQL Server container started.");
+    }
+
+    #endregion
+
+    #region Host Building with Features
+
+    /// <summary>
+    /// Builds a host configured with Redis Streams messaging and specified features.
+    /// Automatically starts SQL Server container if persistence features are enabled.
+    /// </summary>
+    protected async Task<IHost> BuildHostWithFeatures<THandlerMarker>(FeatureConfiguration? features = null)
+    {
+        features ??= Features;
+
+        // Start SQL Server if needed
+        if (features.RequiresSqlServer)
+        {
+            await EnsureSqlServerAsync();
+        }
+
+        var testContext = TestContext;
+
+        var hostBuilder = Host.CreateDefaultBuilder()
+            .ConfigureServices((_, services) =>
+            {
+                services.AddLogging();
+
+                // Register test context as singleton so it can be resolved by middleware
+                services.AddSingleton(testContext);
+
+                // Add middleware to set the test context before each message is processed
+                services.AddSingleton<IConsumeMiddleware, LoadTestContextPropagationMiddleware>();
+
+                var messagingBuilder = services.AddMessaging()
+                    .UseRedisStreamsQueues(queues => queues
+                        .WithConnection(opts =>
+                        {
+                            opts.UseConnectionString(RedisConnectionString);
+                            opts.WithStreamPrefix(StreamPrefix);
+                            opts.ConfigureConsumer(batchSize: 10, blockingTimeout: TimeSpan.FromMilliseconds(100));
+                        })
+                        .WithTopology(topology => topology
+                            .WithServiceName("load-test-service")
+                            .ScanAssemblyContaining<THandlerMarker>()));
+
+                // Configure resilience features
+                if (features.HasResilienceFeatures)
+                {
+                    messagingBuilder.UseResilience(resilience =>
+                    {
+                        if (features.RetryEnabled)
+                        {
+                            resilience.WithRetry(opts =>
+                            {
+                                opts.MaxRetryAttempts = features.RetryMaxAttempts;
+                                opts.InitialDelay = features.RetryInitialDelay;
+                            });
+                        }
+
+                        if (features.CircuitBreakerEnabled)
+                        {
+                            resilience.WithCircuitBreaker(opts =>
+                            {
+                                opts.FailureThreshold = features.CircuitBreakerFailureThreshold;
+                                opts.DurationOfBreak = features.CircuitBreakerDurationOfBreak;
+                            });
+                        }
+
+                        if (features.TimeoutEnabled)
+                        {
+                            resilience.WithTimeout(features.TimeoutDuration);
+                        }
+                    });
+                }
+
+                // Configure persistence features
+                if (features.RequiresSqlServer)
+                {
+                    messagingBuilder.UsePersistence(persistence =>
+                    {
+                        if (features.OutboxEnabled)
+                        {
+                            persistence.WithOutbox(opts =>
+                            {
+                                opts.BatchSize = features.OutboxBatchSize;
+                                opts.ProcessingInterval = features.OutboxProcessingInterval;
+                                opts.AutoCreateSchema = true;
+                            }).UseSqlServer(SqlConnectionString!);
+                        }
+                        else if (features.IdempotencyEnabled)
+                        {
+                            // Idempotency without outbox needs WithOutbox to register repositories
+                            // but we'll use InMemoryMessageStoreProvider
+                            persistence.WithOutbox(opts =>
+                            {
+                                opts.Enabled = false; // Disable outbox processing
+                                opts.AutoCreateSchema = true;
+                            });
+                        }
+
+                        if (features.IdempotencyEnabled)
+                        {
+                            persistence.WithIdempotency(opts =>
+                            {
+                                opts.RetentionPeriod = features.IdempotencyRetentionPeriod;
+                            });
+                        }
+                    });
+
+                    // Register InMemoryMessageStoreProvider if not using SQL Server outbox
+                    if (!features.OutboxEnabled)
+                    {
+                        services.AddSingleton<IMessageStoreProvider>(sp =>
+                            new InMemoryMessageStoreProvider());
+                    }
+                }
+            });
+
+        var host = hostBuilder.Build();
+        await host.StartAsync();
+        return host;
+    }
+
+    /// <summary>
+    /// Creates a FeatureConfiguration with explicit settings.
+    /// Use for test-specific feature combinations.
+    /// </summary>
+    protected static FeatureConfiguration CreateFeatures(
+        bool outbox = false,
+        int outboxBatchSize = 100,
+        TimeSpan? outboxProcessingInterval = null,
+        bool idempotency = false,
+        TimeSpan? idempotencyRetention = null,
+        bool retry = false,
+        int retryMaxAttempts = 3,
+        TimeSpan? retryInitialDelay = null,
+        bool circuitBreaker = false,
+        int circuitBreakerThreshold = 5,
+        TimeSpan? circuitBreakerDuration = null,
+        bool timeout = false,
+        TimeSpan? timeoutDuration = null)
+    {
+        return new FeatureConfiguration
+        {
+            // Persistence
+            OutboxEnabled = outbox,
+            OutboxBatchSize = outboxBatchSize,
+            OutboxProcessingInterval = outboxProcessingInterval ?? TimeSpan.FromSeconds(1),
+            IdempotencyEnabled = idempotency,
+            IdempotencyRetentionPeriod = idempotencyRetention ?? TimeSpan.FromDays(7),
+
+            // Resilience
+            RetryEnabled = retry,
+            RetryMaxAttempts = retryMaxAttempts,
+            RetryInitialDelay = retryInitialDelay ?? TimeSpan.FromMilliseconds(100),
+            CircuitBreakerEnabled = circuitBreaker,
+            CircuitBreakerFailureThreshold = circuitBreakerThreshold,
+            CircuitBreakerDurationOfBreak = circuitBreakerDuration ?? TimeSpan.FromSeconds(30),
+            TimeoutEnabled = timeout,
+            TimeoutDuration = timeoutDuration ?? TimeSpan.FromSeconds(30)
+        };
+    }
+
+    #endregion
+}
+
+/// <summary>
+/// Middleware that propagates the test execution context to the consumer's async flow for load tests.
+/// </summary>
+internal sealed class LoadTestContextPropagationMiddleware(TestExecutionContext testContext) : IConsumeMiddleware
+{
+    public async Task InvokeAsync(ConsumeContext context, Func<ConsumeContext, CancellationToken, Task> next, CancellationToken cancellationToken)
+    {
+        var previousContext = TestExecutionContextAccessor.Current;
+        TestExecutionContextAccessor.Current = testContext;
+        try
+        {
+            await next(context, cancellationToken);
+        }
+        finally
+        {
+            TestExecutionContextAccessor.Current = previousContext;
         }
     }
 }

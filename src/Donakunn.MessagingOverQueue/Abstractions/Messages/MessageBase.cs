@@ -1,9 +1,9 @@
 namespace Donakunn.MessagingOverQueue.Abstractions.Messages;
 
 /// <summary>
-/// Abstract base class for all messages providing common functionality.
+/// Abstract base record for all messages providing common functionality.
 /// </summary>
-public abstract class MessageBase : IMessage
+public abstract record MessageBase : IMessage
 {
     /// <inheritdoc />
     public Guid Id { get; init; } = Guid.NewGuid();

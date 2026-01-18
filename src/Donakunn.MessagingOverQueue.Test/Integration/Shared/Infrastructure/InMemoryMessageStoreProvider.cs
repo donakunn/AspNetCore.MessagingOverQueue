@@ -2,7 +2,7 @@ using Donakunn.MessagingOverQueue.Persistence.Entities;
 using Donakunn.MessagingOverQueue.Persistence.Providers;
 using System.Collections.Concurrent;
 
-namespace MessagingOverQueue.Test.Integration.Infrastructure;
+namespace MessagingOverQueue.Test.Integration.Shared.Infrastructure;
 
 /// <summary>
 /// In-memory implementation of <see cref="IMessageStoreProvider"/> for testing.
@@ -193,8 +193,8 @@ public sealed class InMemoryMessageStoreProvider : IMessageStoreProvider
 
     public Task<bool> TryAddAsync(MessageStoreEntry entry, CancellationToken cancellationToken = default)
     {
-        //TODO: implement when needed.
-        throw new NotImplementedException();
+        var key = GetKey(entry);
+        return Task.FromResult(_entries.TryAdd(key, CloneEntry(entry)));
     }
 }
 

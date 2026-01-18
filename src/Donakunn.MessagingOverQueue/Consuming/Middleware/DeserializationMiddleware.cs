@@ -7,7 +7,7 @@ namespace Donakunn.MessagingOverQueue.Consuming.Middleware;
 /// <summary>
 /// Middleware that deserializes incoming messages.
 /// </summary>
-public class DeserializationMiddleware : IConsumeMiddleware
+public class DeserializationMiddleware : IOrderedConsumeMiddleware
 {
     private readonly IMessageSerializer _serializer;
     private readonly IMessageTypeResolver _typeResolver;
@@ -22,6 +22,9 @@ public class DeserializationMiddleware : IConsumeMiddleware
         _typeResolver = typeResolver;
         _logger = logger;
     }
+
+    /// <inheritdoc />
+    public int Order => MiddlewareOrder.Deserialization;
 
     public async Task InvokeAsync(ConsumeContext context, Func<ConsumeContext, CancellationToken, Task> next, CancellationToken cancellationToken)
     {

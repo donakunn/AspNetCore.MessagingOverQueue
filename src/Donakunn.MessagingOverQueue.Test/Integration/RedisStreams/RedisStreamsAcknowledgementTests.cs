@@ -1,9 +1,9 @@
 using Donakunn.MessagingOverQueue.Abstractions.Consuming;
 using Donakunn.MessagingOverQueue.Abstractions.Messages;
 using Donakunn.MessagingOverQueue.Abstractions.Publishing;
-using MessagingOverQueue.Test.Integration.Infrastructure;
+using MessagingOverQueue.Test.Integration.Shared.Infrastructure;
 using MessagingOverQueue.Test.Integration.RedisStreams.Infrastructure;
-using MessagingOverQueue.Test.Integration.TestDoubles;
+using MessagingOverQueue.Test.Integration.Shared.TestDoubles;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MessagingOverQueue.Test.Integration.RedisStreams;
@@ -311,7 +311,7 @@ public class RedisStreamsAcknowledgementTests : RedisStreamsIntegrationTestBase
 /// <summary>
 /// Event that can succeed or fail based on property.
 /// </summary>
-public class MixedSuccessEvent : Event
+public record MixedSuccessEvent : Event
 {
     public bool ShouldSucceed { get; set; }
     public string Value { get; set; } = string.Empty;

@@ -6,19 +6,18 @@ using Donakunn.MessagingOverQueue.Persistence.Entities;
 using Donakunn.MessagingOverQueue.Persistence.Providers;
 using Donakunn.MessagingOverQueue.Persistence.Repositories;
 using Donakunn.MessagingOverQueue.Topology.DependencyInjection;
-using MessagingOverQueue.Test.Integration.Infrastructure;
-using MessagingOverQueue.Test.Integration.TestDoubles;
+using MessagingOverQueue.Test.Integration.RabbitMq.Infrastructure;
+using MessagingOverQueue.Test.Integration.Shared.TestDoubles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using static Donakunn.MessagingOverQueue.Topology.DependencyInjection.TopologyServiceCollectionExtensions;
 
-namespace MessagingOverQueue.Test.Integration;
+namespace MessagingOverQueue.Test.Integration.RabbitMq;
 
 /// <summary>
 /// Integration tests for the outbox pattern.
 /// Tests reliable message delivery using SQL Server provider.
 /// </summary>
-public class OutboxIntegrationTests : IntegrationTestBase
+public class OutboxIntegrationTests : RabbitMqIntegrationTestBase
 {
     [Fact]
     public async Task OutboxPublisher_Stores_Message_In_Database()

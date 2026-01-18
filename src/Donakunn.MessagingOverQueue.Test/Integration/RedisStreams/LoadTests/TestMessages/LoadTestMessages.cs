@@ -3,7 +3,7 @@ using System.Diagnostics;
 using Donakunn.MessagingOverQueue.Abstractions.Consuming;
 using Donakunn.MessagingOverQueue.Abstractions.Messages;
 using Donakunn.MessagingOverQueue.Topology.Attributes;
-using MessagingOverQueue.Test.Integration.Infrastructure;
+using MessagingOverQueue.Test.Integration.Shared.Infrastructure;
 using MessagingOverQueue.Test.Integration.RedisStreams.LoadTests.Metrics;
 
 namespace MessagingOverQueue.Test.Integration.RedisStreams.LoadTests.TestMessages;
@@ -13,7 +13,7 @@ namespace MessagingOverQueue.Test.Integration.RedisStreams.LoadTests.TestMessage
 /// <summary>
 /// Event type for load testing with timing instrumentation.
 /// </summary>
-public class LoadTestEvent : Event
+public record LoadTestEvent : Event
 {
     /// <summary>
     /// Sequence number for ordering verification.
@@ -40,7 +40,7 @@ public class LoadTestEvent : Event
 /// <summary>
 /// Event for stress testing with configurable processing delay.
 /// </summary>
-public class SlowLoadTestEvent : Event
+public record SlowLoadTestEvent : Event
 {
     /// <summary>
     /// Sequence number for ordering verification.
@@ -56,6 +56,52 @@ public class SlowLoadTestEvent : Event
     /// Simulated processing delay.
     /// </summary>
     public TimeSpan ProcessingDelay { get; set; } = TimeSpan.FromMilliseconds(50);
+}
+
+/// <summary>
+/// Event for testing failure injection and resilience features under load.
+/// Supports configurable failure patterns for retry, circuit breaker, and timeout testing.
+/// </summary>
+public record FailingLoadTestEvent : Event
+{
+    /// <summary>
+    /// Sequence number for ordering verification.
+    /// </summary>
+    public long Sequence { get; set; }
+
+    /// <summary>
+    /// High-resolution timestamp when the message was published.
+    /// </summary>
+    public long PublishedAtTicks { get; set; } = Stopwatch.GetTimestamp();
+
+    /// <summary>
+    /// Whether this message's handler should throw an exception.
+    /// </summary>
+    public bool ShouldFail { get; set; }
+
+    /// <summary>
+    /// Whether the failure is transient (recoverable after retries).
+    /// When true, the handler will succeed after FailOnAttempts are exhausted.
+    /// </summary>
+    public bool IsTransient { get; set; }
+
+    /// <summary>
+    /// Simulated processing delay before failure/success.
+    /// Use for timeout testing.
+    /// </summary>
+    public TimeSpan SimulatedDelay { get; set; } = TimeSpan.Zero;
+
+    /// <summary>
+    /// List of attempt numbers (1-based) on which to fail.
+    /// If empty and ShouldFail is true, fails on all attempts.
+    /// Example: [1, 2] means fail on first and second attempts, succeed on third.
+    /// </summary>
+    public List<int> FailOnAttempts { get; set; } = [];
+
+    /// <summary>
+    /// Error message to use when throwing.
+    /// </summary>
+    public string FailureMessage { get; set; } = "Simulated failure for load testing";
 }
 
 #endregion

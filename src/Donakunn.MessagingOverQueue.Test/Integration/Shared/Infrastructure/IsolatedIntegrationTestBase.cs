@@ -1,4 +1,4 @@
-namespace MessagingOverQueue.Test.Integration.Infrastructure;
+namespace MessagingOverQueue.Test.Integration.Shared.Infrastructure;
 
 /// <summary>
 /// Base class for integration tests that provides isolated test execution context.
@@ -13,7 +13,7 @@ public abstract class IsolatedIntegrationTestBase : IDisposable
     {
         // Create a new context for this test instance
         _testContext = new TestExecutionContext();
-        
+
         // Set it as the current context for this async flow
         TestExecutionContextAccessor.Current = _testContext;
     }

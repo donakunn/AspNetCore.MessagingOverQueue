@@ -1,31 +1,30 @@
 using Donakunn.MessagingOverQueue.DependencyInjection;
-using Donakunn.MessagingOverQueue.Persistence.DependencyInjection;
 using Donakunn.MessagingOverQueue.Topology.DependencyInjection;
+using MessagingOverQueue.Test.Integration.Shared.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Testcontainers.MsSql;
 using Testcontainers.RabbitMq;
-using static Donakunn.MessagingOverQueue.Topology.DependencyInjection.TopologyServiceCollectionExtensions;
 
-namespace MessagingOverQueue.Test.Integration.Infrastructure;
+namespace MessagingOverQueue.Test.Integration.RabbitMq.Infrastructure;
 
 /// <summary>
-/// Base class for integration tests providing containerized SQL Server and RabbitMQ infrastructure.
+/// Base class for RabbitMQ integration tests providing containerized SQL Server and RabbitMQ infrastructure.
 /// Uses xUnit's IAsyncLifetime for proper async setup/teardown.
 /// Includes isolated test execution context to prevent state sharing between parallel tests.
 /// </summary>
-public abstract class IntegrationTestBase : IAsyncLifetime
+public abstract class RabbitMqIntegrationTestBase : IAsyncLifetime
 {
     private MsSqlContainer? _sqlContainer;
     protected RabbitMqContainer? _rabbitMqContainer;
     protected IServiceProvider ServiceProvider { get; private set; } = null!;
     protected string ConnectionString { get; private set; } = string.Empty;
     protected string RabbitMqConnectionString { get; private set; } = string.Empty;
-    
+
     private readonly TestExecutionContext _testContext;
 
-    protected IntegrationTestBase()
+    protected RabbitMqIntegrationTestBase()
     {
         // Create and set isolated test execution context for this test instance
         _testContext = new TestExecutionContext();
@@ -175,7 +174,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         {
             await _rabbitMqContainer.DisposeAsync();
         }
-        
+
         // Clean up test execution context
         _testContext.Reset();
         TestExecutionContextAccessor.Current = null;

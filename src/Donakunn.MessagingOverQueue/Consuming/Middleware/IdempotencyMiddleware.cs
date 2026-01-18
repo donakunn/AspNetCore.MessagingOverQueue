@@ -9,8 +9,10 @@ namespace Donakunn.MessagingOverQueue.Consuming.Middleware;
 /// </summary>
 public class IdempotencyMiddleware(
     IInboxRepository inboxRepository,
-    ILogger<IdempotencyMiddleware> logger) : IConsumeMiddleware
+    ILogger<IdempotencyMiddleware> logger) : IOrderedConsumeMiddleware
 {
+    /// <inheritdoc />
+    public int Order => MiddlewareOrder.Idempotency;
     /// <summary>
     /// Key used to store the <see cref="IInboxRepository"/> in the context data.
     /// </summary>

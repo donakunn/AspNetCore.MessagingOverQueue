@@ -11,9 +11,12 @@ namespace Donakunn.MessagingOverQueue.Consuming.Middleware;
 public class RetryMiddleware(
     IRetryPolicy retryPolicy,
     IOptions<RetryOptions> options,
-    ILogger<RetryMiddleware> logger) : IConsumeMiddleware
+    ILogger<RetryMiddleware> logger) : IOrderedConsumeMiddleware
 {
     private readonly RetryOptions _options = options.Value;
+
+    /// <inheritdoc />
+    public int Order => MiddlewareOrder.Retry;
 
     public async Task InvokeAsync(ConsumeContext context, Func<ConsumeContext, CancellationToken, Task> next, CancellationToken cancellationToken)
     {

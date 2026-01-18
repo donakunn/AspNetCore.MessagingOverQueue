@@ -9,9 +9,9 @@ public interface IEvent : IMessage
 }
 
 /// <summary>
-/// Base class for event messages.
+/// Base record for event messages.
 /// </summary>
-public abstract class Event : MessageBase, IEvent
+public abstract record Event : MessageBase, IEvent
 {
 }
 

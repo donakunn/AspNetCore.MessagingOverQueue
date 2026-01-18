@@ -4,7 +4,7 @@ using Donakunn.MessagingOverQueue.Abstractions.Publishing;
 using Donakunn.MessagingOverQueue.RedisStreams.DependencyInjection;
 using Donakunn.MessagingOverQueue.Topology.DependencyInjection;
 using MessagingOverQueue.Test.Integration.RedisStreams.Infrastructure;
-using MessagingOverQueue.Test.Integration.TestDoubles;
+using MessagingOverQueue.Test.Integration.Shared.TestDoubles;
 using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
 
@@ -381,7 +381,7 @@ public class RedisStreamsPendingMessagesTests : RedisStreamsIntegrationTestBase
 /// <summary>
 /// Event for testing message claiming.
 /// </summary>
-public class ClaimableEvent : Event
+public record ClaimableEvent : Event
 {
     public string Value { get; set; } = string.Empty;
     public TimeSpan ProcessingDelay { get; set; }
@@ -415,7 +415,7 @@ public class ClaimableEventHandler : IMessageHandler<ClaimableEvent>
 /// <summary>
 /// Event for selective failure testing.
 /// </summary>
-public class SelectiveFailureEvent : Event
+public record SelectiveFailureEvent : Event
 {
     public bool ShouldFail { get; set; }
     public string Value { get; set; } = string.Empty;
@@ -447,7 +447,7 @@ public class SelectiveFailureEventHandler : IMessageHandler<SelectiveFailureEven
 /// <summary>
 /// Event for DLQ testing.
 /// </summary>
-public class DlqTestEvent : Event
+public record DlqTestEvent : Event
 {
     public bool AlwaysFail { get; set; }
     public string TestValue { get; set; } = string.Empty;
@@ -470,7 +470,7 @@ public class DlqTestEventHandler : IMessageHandler<DlqTestEvent>
 /// <summary>
 /// Event that succeeds after N attempts.
 /// </summary>
-public class RetryableEvent : Event
+public record RetryableEvent : Event
 {
     public string Value { get; set; } = string.Empty;
     public int SucceedAfterAttempts { get; set; }

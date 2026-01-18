@@ -9,9 +9,9 @@ public interface ICommand : IMessage
 }
 
 /// <summary>
-/// Base class for command messages.
+/// Base record for command messages.
 /// </summary>
-public abstract class Command : MessageBase, ICommand
+public abstract record Command : MessageBase, ICommand
 {
 }
 
