@@ -31,7 +31,8 @@ public class ResilienceUnderLoadTests : LoadTestBase
         var features = CreateFeatures(
             retry: true,
             retryMaxAttempts: 3,
-            retryInitialDelay: TimeSpan.FromMilliseconds(50));
+            retryInitialDelay: TimeSpan.FromMilliseconds(50),
+            outbox: true, idempotency: true, circuitBreaker: true);
 
         using var host = await BuildHostWithFeatures<FailingLoadTestEventHandler>(features);
         var publisher = host.Services.GetRequiredService<IEventPublisher>();

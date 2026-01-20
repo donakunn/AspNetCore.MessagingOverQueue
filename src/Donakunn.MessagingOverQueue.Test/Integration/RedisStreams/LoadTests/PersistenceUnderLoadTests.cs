@@ -132,7 +132,12 @@ public class PersistenceUnderLoadTests : LoadTestBase
         var features2 = CreateFeatures(
             outbox: true,
             outboxBatchSize: 100,
-            outboxProcessingInterval: TimeSpan.FromMilliseconds(100));
+            outboxProcessingInterval: TimeSpan.FromMilliseconds(100),
+            idempotency: true,
+            retry:  true,
+            retryMaxAttempts: 10,
+            retryInitialDelay: TimeSpan.FromSeconds(3),
+            circuitBreaker: true);
 
         LoadTestEventHandler.Reset();
         LoadTestEventHandler.SetMetricsCollector(Metrics);
