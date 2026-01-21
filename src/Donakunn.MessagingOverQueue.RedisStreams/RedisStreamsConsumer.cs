@@ -35,6 +35,33 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
     /// </summary>
     private readonly ConcurrentDictionary<string, long> _inFlightEntries = new();
 
+    /// <summary>
+    /// Cache of pending message info fetched at batch level.
+    /// Key: Redis entry ID string, Value: delivery count.
+    /// This avoids expensive per-message XPENDING calls.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, int> _deliveryCountCache = new();
+
+    /// <summary>
+    /// Tracks recently acknowledged entry IDs to prevent duplicate processing.
+    /// Key: Redis entry ID string, Value: timestamp when acknowledged.
+    /// This prevents race conditions where the claiming loop receives stale pending entries
+    /// that were acked between the pending list fetch and processing attempt.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, long> _recentlyAcked = new();
+
+    /// <summary>
+    /// How long to keep entries in the recently acked cache.
+    /// Should be longer than the claiming check interval to ensure stale entries are caught.
+    /// </summary>
+    private static readonly TimeSpan RecentlyAckedRetention = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// Tracks active processing tasks for graceful shutdown.
+    /// Using ConcurrentBag for thread-safe add and enumeration during shutdown.
+    /// </summary>
+    private readonly ConcurrentBag<Task> _activeTasks = new();
+
     private Task? _processingTask;
     private Task? _claimingTask;
     private volatile bool _isRunning;
@@ -104,16 +131,16 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
         _isRunning = false;
         await _stoppingCts.CancelAsync();
 
-        // Wait for processing tasks to complete
-        var tasks = new List<Task>();
-        if (_processingTask != null) tasks.Add(_processingTask);
-        if (_claimingTask != null) tasks.Add(_claimingTask);
+        // Wait for processing loop tasks to complete
+        var loopTasks = new List<Task>();
+        if (_processingTask != null) loopTasks.Add(_processingTask);
+        if (_claimingTask != null) loopTasks.Add(_claimingTask);
 
-        if (tasks.Count > 0)
+        if (loopTasks.Count > 0)
         {
             try
             {
-                await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(30), cancellationToken);
+                await Task.WhenAll(loopTasks).WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -121,7 +148,26 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
             }
             catch (TimeoutException)
             {
-                _logger.LogWarning("Timeout waiting for consumer tasks to complete");
+                _logger.LogWarning("Timeout waiting for consumer loop tasks to complete");
+            }
+        }
+
+        // Wait for active message processing tasks to complete (graceful drain)
+        var activeTasks = _activeTasks.Where(t => !t.IsCompleted).ToArray();
+        if (activeTasks.Length > 0)
+        {
+            _logger.LogDebug("Waiting for {Count} active processing tasks to complete", activeTasks.Length);
+            try
+            {
+                await Task.WhenAll(activeTasks).WaitAsync(TimeSpan.FromSeconds(30), cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected during shutdown
+            }
+            catch (TimeoutException)
+            {
+                _logger.LogWarning("Timeout waiting for {Count} active processing tasks", activeTasks.Length);
             }
         }
 
@@ -192,7 +238,8 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
                     continue;
                 }
 
-                await ProcessEntriesBatchAsync(db, entries, handler, cancellationToken);
+                // New messages have delivery count of 1
+                await ProcessEntriesBatchAsync(db, entries, handler, cancellationToken, isFromPendingRead: false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -226,6 +273,9 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
             try
             {
                 await Task.Delay(_options.ClaimCheckInterval, cancellationToken);
+
+                // Clean up old entries from the recently acked cache
+                CleanupRecentlyAckedCache();
 
                 // Re-read our own pending messages for retry
                 await RetryOwnPendingMessagesAsync(db, handler, cancellationToken);
@@ -270,7 +320,8 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
                 "Found {Count} pending messages for retry in stream '{StreamKey}'",
                 pendingEntries.Length, _streamKey);
 
-            await ProcessEntriesBatchAsync(db, pendingEntries, handler, cancellationToken);
+            // Pending messages need delivery count tracking for dead letter handling
+            await ProcessEntriesBatchAsync(db, pendingEntries, handler, cancellationToken, isFromPendingRead: true);
         }
     }
 
@@ -296,20 +347,29 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
                 "Claimed {Count} idle messages from other consumers in stream '{StreamKey}'",
                 claimedMessages.ClaimedEntries.Length, _streamKey);
 
-            await ProcessEntriesBatchAsync(db, claimedMessages.ClaimedEntries, handler, cancellationToken);
+            // Claimed messages are pending messages that need delivery count tracking
+            await ProcessEntriesBatchAsync(db, claimedMessages.ClaimedEntries, handler, cancellationToken, isFromPendingRead: true);
         }
     }
 
     /// <summary>
     /// Processes a batch of entries with concurrency control and duplicate prevention.
+    /// Pre-fetches delivery counts for the batch to avoid per-message Redis calls.
+    /// Uses continuous flow - tasks are started immediately and the semaphore provides backpressure.
     /// </summary>
     private async Task ProcessEntriesBatchAsync(
         IDatabase db,
         StreamEntry[] entries,
         Func<ConsumeContext, CancellationToken, Task> handler,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool isFromPendingRead = false)
     {
-        var processingTasks = new List<Task>();
+        // Pre-fetch delivery counts for the entire batch if processing pending messages
+        // This avoids O(n) Redis calls per message
+        if (isFromPendingRead && entries.Length > 0)
+        {
+            await PreFetchDeliveryCountsAsync(db, entries, cancellationToken);
+        }
 
         foreach (var entry in entries)
         {
@@ -317,6 +377,17 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
                 break;
 
             var entryIdStr = entry.Id.ToString();
+
+            // For pending reads, also check if entry was recently acked.
+            // This prevents race conditions where the claiming loop receives stale pending entries
+            // that were acked between the pending list fetch and this processing attempt.
+            if (isFromPendingRead && _recentlyAcked.ContainsKey(entryIdStr))
+            {
+                _logger.LogDebug(
+                    "Skipping entry {EntryId} - recently acknowledged",
+                    entryIdStr);
+                continue;
+            }
 
             // Atomically check if entry is already being processed
             // TryAdd returns false if the key already exists
@@ -328,37 +399,87 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
                 continue;
             }
 
+            // Wait for semaphore - this provides backpressure when MaxConcurrency is reached.
+            // This is the key to continuous flow: we wait here only when at capacity,
+            // not for the entire batch to complete.
             await _concurrencySemaphore.WaitAsync(cancellationToken);
 
-            var task = ProcessEntryWithTrackingAsync(db, entry, entryIdStr, handler, cancellationToken);
-            processingTasks.Add(task);
+            // Start processing without awaiting - the semaphore controls concurrency.
+            // Task exceptions are handled in ProcessEntryWithTrackingAsync.
+            var task = ProcessEntryWithTrackingAsync(db, entry, entryIdStr, handler, cancellationToken, isFromPendingRead);
+
+            // Track task for graceful shutdown
+            _activeTasks.Add(task);
         }
 
-        // Wait for all tasks in this batch to complete to maintain backpressure
-        if (processingTasks.Count > 0)
+        // Note: We don't wait for tasks here - continuous flow allows the main loop
+        // to immediately read the next batch. The semaphore provides backpressure.
+    }
+
+    /// <summary>
+    /// Pre-fetches delivery counts for a batch of entries in a single Redis call.
+    /// </summary>
+    private async Task PreFetchDeliveryCountsAsync(
+        IDatabase db,
+        StreamEntry[] entries,
+        CancellationToken cancellationToken)
+    {
+        if (cancellationToken.IsCancellationRequested)
+            return;
+
+        try
         {
-            await Task.WhenAll(processingTasks);
+            // Fetch pending info for all messages owned by this consumer
+            var pending = await db.StreamPendingMessagesAsync(
+                _streamKey,
+                _consumerGroup,
+                count: Math.Max(entries.Length * 2, 100),
+                consumerName: _consumerId);
+
+            // Build lookup dictionary
+            foreach (var info in pending)
+            {
+                var entryIdStr = info.MessageId.ToString();
+                _deliveryCountCache[entryIdStr] = (int)info.DeliveryCount;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to pre-fetch delivery counts, will use defaults");
         }
     }
 
     /// <summary>
     /// Processes a single entry with proper tracking and cleanup.
+    /// Handles exceptions to prevent unobserved task exceptions since tasks are not immediately awaited.
     /// </summary>
     private async Task ProcessEntryWithTrackingAsync(
         IDatabase db,
         StreamEntry entry,
         string entryIdStr,
         Func<ConsumeContext, CancellationToken, Task> handler,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool isFromPendingRead = false)
     {
         try
         {
-            await ProcessEntryAsync(db, entry, handler, cancellationToken);
+            await ProcessEntryAsync(db, entry, handler, cancellationToken, isFromPendingRead);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Expected during shutdown, don't log
+        }
+        catch (Exception ex)
+        {
+            // Log unexpected exceptions to prevent them from being unobserved.
+            // The message will be retried via the pending mechanism.
+            _logger.LogError(ex, "Unexpected error processing entry {EntryId}", entryIdStr);
         }
         finally
         {
-            // Always remove from in-flight tracking and release semaphore
+            // Always remove from in-flight tracking, delivery count cache, and release semaphore
             _inFlightEntries.TryRemove(entryIdStr, out _);
+            _deliveryCountCache.TryRemove(entryIdStr, out _);
             _concurrencySemaphore.Release();
         }
     }
@@ -370,9 +491,11 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
         IDatabase db,
         StreamEntry entry,
         Func<ConsumeContext, CancellationToken, Task> handler,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool isFromPendingRead = false)
     {
         var entryId = entry.Id;
+        var entryIdStr = entryId.ToString();
         string? messageId = null;
 
         try
@@ -381,15 +504,19 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
                 v => v.Name.ToString(),
                 v => v.Value);
 
-            messageId = GetEntryValue(values, "message-id") ?? entryId.ToString();
+            messageId = GetEntryValue(values, "message-id") ?? entryIdStr;
             var messageType = GetEntryValue(values, "message-type");
             var body = GetEntryBytes(values, "body");
             var headers = ParseHeaders(GetEntryValue(values, "headers"));
             var correlationId = GetEntryValue(values, "correlation-id");
 
-            // Get delivery count for dead letter handling
-            var pendingInfo = await GetPendingInfoAsync(db, entryId);
-            var deliveryCount = pendingInfo?.DeliveryCount ?? 1;
+            // Get delivery count from cache (populated at batch level) or use default
+            // For new messages (not from pending), delivery count is always 1
+            var deliveryCount = 1;
+            if (isFromPendingRead && _deliveryCountCache.TryGetValue(entryIdStr, out var cachedCount))
+            {
+                deliveryCount = cachedCount;
+            }
 
             // Check if message should be moved to DLQ
             if (deliveryCount > _options.MaxDeliveryAttempts)
@@ -486,26 +613,35 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
     private async Task AcknowledgeEntryAsync(IDatabase db, RedisValue entryId, string? messageId)
     {
         await db.StreamAcknowledgeAsync(_streamKey, _consumerGroup, entryId);
+
+        // Track this entry as recently acked to prevent race conditions with the claiming loop.
+        // The claiming loop might receive stale pending list data that includes entries
+        // that were acked between the fetch and the processing attempt.
+        var entryIdStr = entryId.ToString();
+        _recentlyAcked[entryIdStr] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
         _logger.LogDebug("Acknowledged message {MessageId}", messageId);
     }
 
-    private async Task<StreamPendingMessageInfo?> GetPendingInfoAsync(IDatabase db, RedisValue entryId)
+    /// <summary>
+    /// Removes old entries from the recently acked cache to prevent unbounded growth.
+    /// </summary>
+    private void CleanupRecentlyAckedCache()
     {
-        try
-        {
-            var pending = await db.StreamPendingMessagesAsync(
-                _streamKey,
-                _consumerGroup,
-                count: 1000,
-                consumerName: RedisValue.Null);
+        var cutoff = DateTimeOffset.UtcNow.Add(-RecentlyAckedRetention).ToUnixTimeMilliseconds();
+        var keysToRemove = _recentlyAcked
+            .Where(kvp => kvp.Value < cutoff)
+            .Select(kvp => kvp.Key)
+            .ToList();
 
-            var entryIdStr = entryId.ToString();
-            return pending.FirstOrDefault(p => p.MessageId.ToString() == entryIdStr);
-        }
-        catch (Exception ex)
+        foreach (var key in keysToRemove)
         {
-            _logger.LogWarning(ex, "Failed to get pending info for entry {EntryId}", entryId);
-            return null;
+            _recentlyAcked.TryRemove(key, out _);
+        }
+
+        if (keysToRemove.Count > 0)
+        {
+            _logger.LogDebug("Cleaned up {Count} entries from recently acked cache", keysToRemove.Count);
         }
     }
 

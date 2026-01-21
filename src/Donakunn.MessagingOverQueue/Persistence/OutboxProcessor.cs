@@ -158,7 +158,7 @@ public sealed class OutboxProcessor : BackgroundService
             Body = message.Payload,
             ExchangeName = message.ExchangeName,
             RoutingKey = message.RoutingKey,
-            QueueName = message.RoutingKey, // For Redis Streams, use routing key as queue/stream name
+            QueueName = message.QueueName ?? message.RoutingKey, // Use stored QueueName, fall back to RoutingKey for backward compatibility
             Persistent = true,
             ContentType = "application/json"
         };

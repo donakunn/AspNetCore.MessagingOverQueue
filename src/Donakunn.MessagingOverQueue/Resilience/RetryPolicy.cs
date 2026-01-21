@@ -64,10 +64,13 @@ public class PollyRetryPolicy : IRetryPolicy
         if (options.NonRetryableExceptions.Contains(exceptionTypeName))
             return false;
 
-        // Retry transient errors
-        return exception is TimeoutException or
-            OperationCanceledException or
-            IOException or
-            System.Net.Sockets.SocketException;
+        // Don't retry cancellation (user requested stop)
+        if (exception is OperationCanceledException)
+            return false;
+
+        // Retry all other exceptions by default
+        // This is appropriate for message queue scenarios where transient failures
+        // can manifest as various exception types
+        return true;
     }
 }
