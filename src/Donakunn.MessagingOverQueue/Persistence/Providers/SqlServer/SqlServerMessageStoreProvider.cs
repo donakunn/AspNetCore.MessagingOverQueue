@@ -57,11 +57,11 @@ public sealed class SqlServerMessageStoreProvider : IMessageStoreProvider
     {
         const string sql = """
             INSERT INTO {0} (
-                Id, Direction, MessageType, Payload, ExchangeName, RoutingKey, Headers,
+                Id, Direction, MessageType, Payload, ExchangeName, RoutingKey, QueueName, Headers,
                 HandlerType, CreatedAt, ProcessedAt, Status, RetryCount, LastError,
                 LockToken, LockExpiresAt, CorrelationId
             ) VALUES (
-                @Id, @Direction, @MessageType, @Payload, @ExchangeName, @RoutingKey, @Headers,
+                @Id, @Direction, @MessageType, @Payload, @ExchangeName, @RoutingKey, @QueueName, @Headers,
                 @HandlerType, @CreatedAt, @ProcessedAt, @Status, @RetryCount, @LastError,
                 @LockToken, @LockExpiresAt, @CorrelationId
             )
@@ -83,11 +83,11 @@ public sealed class SqlServerMessageStoreProvider : IMessageStoreProvider
     {
         const string sql = """
             INSERT INTO {0} (
-                Id, Direction, MessageType, Payload, ExchangeName, RoutingKey, Headers,
+                Id, Direction, MessageType, Payload, ExchangeName, RoutingKey, QueueName, Headers,
                 HandlerType, CreatedAt, ProcessedAt, Status, RetryCount, LastError,
                 LockToken, LockExpiresAt, CorrelationId
             ) VALUES (
-                @Id, @Direction, @MessageType, @Payload, @ExchangeName, @RoutingKey, @Headers,
+                @Id, @Direction, @MessageType, @Payload, @ExchangeName, @RoutingKey, @QueueName, @Headers,
                 @HandlerType, @CreatedAt, @ProcessedAt, @Status, @RetryCount, @LastError,
                 @LockToken, @LockExpiresAt, @CorrelationId
             )
@@ -114,7 +114,7 @@ public sealed class SqlServerMessageStoreProvider : IMessageStoreProvider
     public async Task<MessageStoreEntry?> GetByIdAsync(Guid id, MessageDirection direction, CancellationToken cancellationToken = default)
     {
         const string sql = """
-            SELECT Id, Direction, MessageType, Payload, ExchangeName, RoutingKey, Headers,
+            SELECT Id, Direction, MessageType, Payload, ExchangeName, RoutingKey, QueueName, Headers,
                    HandlerType, CreatedAt, ProcessedAt, Status, RetryCount, LastError,
                    LockToken, LockExpiresAt, CorrelationId
             FROM {0}
@@ -170,7 +170,7 @@ public sealed class SqlServerMessageStoreProvider : IMessageStoreProvider
                 LockToken = @LockToken,
                 LockExpiresAt = @LockExpiresAt
             OUTPUT inserted.Id, inserted.Direction, inserted.MessageType, inserted.Payload,
-                   inserted.ExchangeName, inserted.RoutingKey, inserted.Headers,
+                   inserted.ExchangeName, inserted.RoutingKey, inserted.QueueName, inserted.Headers,
                    inserted.HandlerType, inserted.CreatedAt, inserted.ProcessedAt,
                    inserted.Status, inserted.RetryCount, inserted.LastError,
                    inserted.LockToken, inserted.LockExpiresAt, inserted.CorrelationId
@@ -367,6 +367,7 @@ public sealed class SqlServerMessageStoreProvider : IMessageStoreProvider
         
         command.Parameters.AddWithValue("@ExchangeName", (object?)entry.ExchangeName ?? DBNull.Value);
         command.Parameters.AddWithValue("@RoutingKey", (object?)entry.RoutingKey ?? DBNull.Value);
+        command.Parameters.AddWithValue("@QueueName", (object?)entry.QueueName ?? DBNull.Value);
         command.Parameters.AddWithValue("@Headers", (object?)entry.Headers ?? DBNull.Value);
         // HandlerType is NOT NULL in the schema, use empty string as default
         command.Parameters.AddWithValue("@HandlerType", entry.HandlerType ?? string.Empty);
@@ -390,16 +391,17 @@ public sealed class SqlServerMessageStoreProvider : IMessageStoreProvider
             Payload = reader.IsDBNull(3) ? null : (byte[])reader[3],
             ExchangeName = reader.IsDBNull(4) ? null : reader.GetString(4),
             RoutingKey = reader.IsDBNull(5) ? null : reader.GetString(5),
-            Headers = reader.IsDBNull(6) ? null : reader.GetString(6),
-            HandlerType = reader.IsDBNull(7) ? null : reader.GetString(7),
-            CreatedAt = reader.GetDateTime(8),
-            ProcessedAt = reader.IsDBNull(9) ? null : reader.GetDateTime(9),
-            Status = (MessageStatus)reader.GetInt32(10),
-            RetryCount = reader.GetInt32(11),
-            LastError = reader.IsDBNull(12) ? null : reader.GetString(12),
-            LockToken = reader.IsDBNull(13) ? null : reader.GetString(13),
-            LockExpiresAt = reader.IsDBNull(14) ? null : reader.GetDateTime(14),
-            CorrelationId = reader.IsDBNull(15) ? null : reader.GetString(15)
+            QueueName = reader.IsDBNull(6) ? null : reader.GetString(6),
+            Headers = reader.IsDBNull(7) ? null : reader.GetString(7),
+            HandlerType = reader.IsDBNull(8) ? null : reader.GetString(8),
+            CreatedAt = reader.GetDateTime(9),
+            ProcessedAt = reader.IsDBNull(10) ? null : reader.GetDateTime(10),
+            Status = (MessageStatus)reader.GetInt32(11),
+            RetryCount = reader.GetInt32(12),
+            LastError = reader.IsDBNull(13) ? null : reader.GetString(13),
+            LockToken = reader.IsDBNull(14) ? null : reader.GetString(14),
+            LockExpiresAt = reader.IsDBNull(15) ? null : reader.GetDateTime(15),
+            CorrelationId = reader.IsDBNull(16) ? null : reader.GetString(16)
         };
     }
 
@@ -430,6 +432,7 @@ public sealed class SqlServerMessageStoreProvider : IMessageStoreProvider
                     [Payload] VARBINARY(MAX) NULL,
                     [ExchangeName] NVARCHAR(256) NULL,
                     [RoutingKey] NVARCHAR(256) NULL,
+                    [QueueName] NVARCHAR(256) NULL,
                     [Headers] NVARCHAR(MAX) NULL,
                     [HandlerType] NVARCHAR(500) NOT NULL DEFAULT '',
                     [CreatedAt] DATETIME2 NOT NULL,
@@ -440,7 +443,7 @@ public sealed class SqlServerMessageStoreProvider : IMessageStoreProvider
                     [LockToken] NVARCHAR(100) NULL,
                     [LockExpiresAt] DATETIME2 NULL,
                     [CorrelationId] NVARCHAR(100) NULL,
-                    
+
                     CONSTRAINT [PK_{_options.TableName}] PRIMARY KEY CLUSTERED ([Id], [Direction], [HandlerType])
                         WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
                 );

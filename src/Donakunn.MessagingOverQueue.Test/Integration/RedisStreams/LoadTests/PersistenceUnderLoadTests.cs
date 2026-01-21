@@ -86,7 +86,7 @@ public class PersistenceUnderLoadTests : LoadTestBase
         Reporter.WriteLine($"Testing outbox recovery after crash");
 
         // Phase 1: Start publisher, add messages to outbox, then "crash" (stop host)
-        LoadTestEventHandler.Reset();
+        LoadTestEventHandler.ResetAll(); // Clear ALL state including static processed sequences
         var host1 = await BuildHostWithFeatures<LoadTestEventHandler>(features);
 
         var messagesBeforeCrash = 100;
@@ -132,7 +132,12 @@ public class PersistenceUnderLoadTests : LoadTestBase
         var features2 = CreateFeatures(
             outbox: true,
             outboxBatchSize: 100,
-            outboxProcessingInterval: TimeSpan.FromMilliseconds(100));
+            outboxProcessingInterval: TimeSpan.FromMilliseconds(100),
+            idempotency: true,
+            retry:  true,
+            retryMaxAttempts: 10,
+            retryInitialDelay: TimeSpan.FromSeconds(3),
+            circuitBreaker: true);
 
         LoadTestEventHandler.Reset();
         LoadTestEventHandler.SetMetricsCollector(Metrics);
@@ -144,11 +149,14 @@ public class PersistenceUnderLoadTests : LoadTestBase
 
         // Report
         Reporter.WriteLine($"After recovery:");
-        Reporter.WriteLine($"  Handler count: {LoadTestEventHandler.HandleCount}");
+        Reporter.WriteLine($"  Handler count (host2 only): {LoadTestEventHandler.HandleCount}");
+        Reporter.WriteLine($"  Total unique processed (both hosts): {LoadTestEventHandler.TotalUniqueProcessed}");
 
-        // Assert - Messages should be recovered from outbox
-        Assert.True(LoadTestEventHandler.HandleCount >= messagesBeforeCrash * 0.9,
-            $"Expected at least 90% of messages ({messagesBeforeCrash * 0.9}) to be recovered");
+        // Assert - Total unique messages processed across both hosts should be >= 90%
+        // Some messages may have been processed by host1 before crash, others by host2 after recovery
+        Assert.True(LoadTestEventHandler.TotalUniqueProcessed >= messagesBeforeCrash * 0.9,
+            $"Expected at least 90% of messages ({messagesBeforeCrash * 0.9}) to be processed across both hosts, " +
+            $"but only {LoadTestEventHandler.TotalUniqueProcessed} unique sequences were processed");
     }
 
     /// <summary>

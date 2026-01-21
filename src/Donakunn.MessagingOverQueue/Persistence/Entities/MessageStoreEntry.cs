@@ -37,6 +37,12 @@ public sealed class MessageStoreEntry
     public string? RoutingKey { get; set; }
 
     /// <summary>
+    /// The queue/stream name for direct publishing (outbox only).
+    /// For Redis Streams, this is the target stream name.
+    /// </summary>
+    public string? QueueName { get; set; }
+
+    /// <summary>
     /// Serialized headers as JSON (outbox only).
     /// </summary>
     public string? Headers { get; set; }
@@ -95,6 +101,7 @@ public sealed class MessageStoreEntry
         byte[] payload,
         string? exchangeName,
         string? routingKey,
+        string? queueName,
         string? headers,
         string? correlationId)
     {
@@ -106,6 +113,7 @@ public sealed class MessageStoreEntry
             Payload = payload,
             ExchangeName = exchangeName,
             RoutingKey = routingKey,
+            QueueName = queueName,
             Headers = headers,
             HandlerType = string.Empty, // Required for NOT NULL constraint
             CorrelationId = correlationId,

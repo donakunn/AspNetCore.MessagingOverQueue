@@ -178,6 +178,7 @@ public sealed class InMemoryMessageStoreProvider : IMessageStoreProvider
             Payload = entry.Payload,
             ExchangeName = entry.ExchangeName,
             RoutingKey = entry.RoutingKey,
+            QueueName = entry.QueueName,
             Headers = entry.Headers,
             HandlerType = entry.HandlerType,
             CreatedAt = entry.CreatedAt,

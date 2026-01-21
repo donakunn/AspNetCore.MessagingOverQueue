@@ -46,6 +46,7 @@ public sealed class OutboxPublisher : IMessagePublisher, IEventPublisher, IComma
         // Use routing resolver for defaults if not explicitly specified
         var exchangeName = options.ExchangeName ?? _routingResolver.GetExchangeName<T>();
         var routingKey = options.RoutingKey ?? _routingResolver.GetRoutingKey<T>();
+        var queueName = _routingResolver.GetQueueName<T>();
 
         var entry = MessageStoreEntry.CreateOutboxEntry(
             message.Id,
@@ -53,13 +54,14 @@ public sealed class OutboxPublisher : IMessagePublisher, IEventPublisher, IComma
             _serializer.Serialize(message),
             exchangeName,
             routingKey,
+            queueName,
             options.Headers != null ? JsonSerializer.Serialize(options.Headers) : null,
             message.CorrelationId);
 
         await _repository.AddAsync(entry, cancellationToken);
 
-        _logger.LogDebug("Added message {MessageId} to outbox for exchange '{Exchange}' with routing key '{RoutingKey}'",
-            message.Id, exchangeName, routingKey);
+        _logger.LogDebug("Added message {MessageId} to outbox for exchange '{Exchange}' with routing key '{RoutingKey}' and queue '{QueueName}'",
+            message.Id, exchangeName, routingKey, queueName);
     }
 
     public Task PublishAsync<T>(T @event, CancellationToken cancellationToken = default) where T : IEvent

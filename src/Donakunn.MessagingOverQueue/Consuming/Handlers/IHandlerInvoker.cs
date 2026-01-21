@@ -58,15 +58,15 @@ internal sealed class HandlerInvoker<TMessage> : IHandlerInvoker
 
             if (idempotencyContext != null)
             {
-                // Atomically try to mark as processed before invoking the handler.
-                // This prevents race conditions where multiple instances of the same message
-                // could be processed simultaneously.
-                var wasMarked = await idempotencyContext.InboxRepository.TryMarkAsProcessedAsync(
-                    message,
+                // Check if already processed (read-only check).
+                // We check BEFORE invoking to skip duplicates, but we only mark as processed
+                // AFTER success to allow retries on failure.
+                var alreadyProcessed = await idempotencyContext.InboxRepository.HasBeenProcessedAsync(
+                    message.Id,
                     handlerType,
                     cancellationToken);
 
-                if (!wasMarked)
+                if (alreadyProcessed)
                 {
                     idempotencyContext.Logger.LogDebug(
                         "Message {MessageId} already processed by {HandlerType}, skipping",
@@ -79,8 +79,18 @@ internal sealed class HandlerInvoker<TMessage> : IHandlerInvoker
             // Invoke the handler
             await handler.HandleAsync((TMessage)message, context, cancellationToken);
 
+            // Mark as processed only AFTER handler succeeds.
+            // This allows retries to work when the handler throws an exception.
+            // Note: There's a small race window where duplicates could occur if two instances
+            // both pass the check simultaneously, but this is acceptable as handlers should
+            // be idempotent anyway. The alternative (mark-before-process) breaks retries.
             if (idempotencyContext != null)
             {
+                await idempotencyContext.InboxRepository.MarkAsProcessedAsync(
+                    message,
+                    handlerType,
+                    cancellationToken);
+
                 idempotencyContext.Logger.LogDebug(
                     "Message {MessageId} processed by {HandlerType}",
                     message.Id,
