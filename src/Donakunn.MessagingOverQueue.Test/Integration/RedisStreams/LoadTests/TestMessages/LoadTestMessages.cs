@@ -120,6 +120,23 @@ public class LoadTestEventHandler : IMessageHandler<LoadTestEvent>
     private const string MetricsCollectorKey = HandlerKey + "_MetricsCollector";
 
     /// <summary>
+    /// Static collection tracking all processed sequences across host restarts.
+    /// This is NOT cleared by Reset() - use ResetAll() to clear it.
+    /// </summary>
+    private static readonly ConcurrentDictionary<long, bool> _processedSequences = new();
+
+    /// <summary>
+    /// Gets the total number of unique sequences processed across all hosts.
+    /// This persists across Reset() calls.
+    /// </summary>
+    public static int TotalUniqueProcessed => _processedSequences.Count;
+
+    /// <summary>
+    /// Gets all processed sequences.
+    /// </summary>
+    public static IEnumerable<long> ProcessedSequences => _processedSequences.Keys;
+
+    /// <summary>
     /// Gets the total number of messages handled.
     /// </summary>
     public static long HandleCount => TestExecutionContextAccessor.GetRequired().GetCounter(HandlerKey).Count;
@@ -146,12 +163,23 @@ public class LoadTestEventHandler : IMessageHandler<LoadTestEvent>
 
     /// <summary>
     /// Resets counters for test isolation.
+    /// Does NOT clear the static processed sequences collection - use ResetAll() for that.
     /// </summary>
     public static void Reset()
     {
         var context = TestExecutionContextAccessor.GetRequired();
         context.GetCounter(HandlerKey).Reset();
         context.SetCustomData(LatenciesKey, new ConcurrentDictionary<long, long>());
+    }
+
+    /// <summary>
+    /// Resets all state including the static processed sequences collection.
+    /// Use this at the start of tests that need complete isolation.
+    /// </summary>
+    public static void ResetAll()
+    {
+        Reset();
+        _processedSequences.Clear();
     }
 
     /// <summary>
@@ -170,6 +198,9 @@ public class LoadTestEventHandler : IMessageHandler<LoadTestEvent>
 
         var latencies = testContext.GetCustomData<ConcurrentDictionary<long, long>>(LatenciesKey);
         latencies?.TryAdd(message.Sequence, latencyTicks);
+
+        // Track processed sequence in static collection (persists across host restarts)
+        _processedSequences.TryAdd(message.Sequence, true);
 
         testContext.GetCounter(HandlerKey).Increment();
 
