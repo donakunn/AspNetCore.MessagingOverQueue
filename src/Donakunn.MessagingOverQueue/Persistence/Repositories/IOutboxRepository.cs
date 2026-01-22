@@ -35,11 +35,34 @@ public interface IOutboxRepository
     Task<IReadOnlyList<MessageStoreEntry>> AcquireLockAsync(int batchSize, TimeSpan lockDuration, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Acquires a lock on messages for processing, filtered by assigned partitions.
+    /// Messages are partitioned by QueueName to maintain ordering within a queue.
+    /// </summary>
+    /// <param name="batchSize">Maximum number of messages to acquire.</param>
+    /// <param name="lockDuration">How long to hold the lock.</param>
+    /// <param name="assignedPartitions">The partition numbers this worker is responsible for.</param>
+    /// <param name="partitionCount">Total number of partitions.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<IReadOnlyList<MessageStoreEntry>> AcquireLockAsync(
+        int batchSize,
+        TimeSpan lockDuration,
+        int[]? assignedPartitions,
+        int partitionCount,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Marks a message as published.
     /// </summary>
     /// <param name="messageId">The message ID.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task MarkAsPublishedAsync(Guid messageId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Marks multiple messages as published in a single batch operation.
+    /// </summary>
+    /// <param name="messageIds">The message IDs to mark as published.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task MarkAsPublishedBatchAsync(IEnumerable<Guid> messageIds, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Marks a message as failed.
@@ -48,6 +71,13 @@ public interface IOutboxRepository
     /// <param name="error">The error message.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task MarkAsFailedAsync(Guid messageId, string error, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Marks multiple messages as failed in a single batch operation.
+    /// </summary>
+    /// <param name="failures">Collection of message IDs and their error messages.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task MarkAsFailedBatchAsync(IEnumerable<(Guid Id, string Error)> failures, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Releases the lock on a message, returning it to pending status.

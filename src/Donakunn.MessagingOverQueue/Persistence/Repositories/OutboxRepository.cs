@@ -33,14 +33,34 @@ public sealed class OutboxRepository : IOutboxRepository
         return _provider.AcquireOutboxLockAsync(batchSize, lockDuration, cancellationToken);
     }
 
+    public Task<IReadOnlyList<MessageStoreEntry>> AcquireLockAsync(
+        int batchSize,
+        TimeSpan lockDuration,
+        int[]? assignedPartitions,
+        int partitionCount,
+        CancellationToken cancellationToken = default)
+    {
+        return _provider.AcquireOutboxLockAsync(batchSize, lockDuration, assignedPartitions, partitionCount, cancellationToken);
+    }
+
     public Task MarkAsPublishedAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
         return _provider.MarkAsPublishedAsync(messageId, cancellationToken);
     }
 
+    public Task MarkAsPublishedBatchAsync(IEnumerable<Guid> messageIds, CancellationToken cancellationToken = default)
+    {
+        return _provider.MarkAsPublishedBatchAsync(messageIds, cancellationToken);
+    }
+
     public Task MarkAsFailedAsync(Guid messageId, string error, CancellationToken cancellationToken = default)
     {
         return _provider.MarkAsFailedAsync(messageId, error, cancellationToken);
+    }
+
+    public Task MarkAsFailedBatchAsync(IEnumerable<(Guid Id, string Error)> failures, CancellationToken cancellationToken = default)
+    {
+        return _provider.MarkAsFailedBatchAsync(failures, cancellationToken);
     }
 
     public Task ReleaseLockAsync(Guid messageId, CancellationToken cancellationToken = default)

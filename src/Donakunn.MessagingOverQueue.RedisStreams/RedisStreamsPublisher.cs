@@ -90,6 +90,118 @@ public sealed class RedisStreamsPublisher : IInternalPublisher
         }
     }
 
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<PublishResult>> PublishBatchAsync(
+        IReadOnlyList<PublishContext> contexts,
+        CancellationToken cancellationToken = default)
+    {
+        if (contexts.Count == 0)
+            return Array.Empty<PublishResult>();
+
+        var db = _connectionPool.GetDatabase();
+        var results = new List<PublishResult>(contexts.Count);
+        var tasks = new List<(Guid MessageId, string StreamKey, Task<RedisValue> Task)>();
+
+        // Use Redis batching (pipelining) for all messages
+        var batch = db.CreateBatch();
+
+        foreach (var context in contexts)
+        {
+            var streamKey = BuildStreamKey(context);
+            var messageIdStr = context.Message?.Id.ToString()
+                ?? GetHeaderValue(context.Headers, "message-id")
+                ?? Guid.NewGuid().ToString();
+
+            if (!Guid.TryParse(messageIdStr, out var messageId))
+            {
+                messageId = Guid.NewGuid();
+            }
+
+            var entries = BuildStreamEntries(context);
+
+            // Determine trimming strategy
+            int? maxLength = _options.RetentionStrategy == StreamRetentionStrategy.CountBased
+                ? (int?)_options.MaxStreamLength
+                : null;
+
+            var task = batch.StreamAddAsync(
+                streamKey,
+                entries,
+                maxLength: maxLength,
+                useApproximateMaxLength: _options.ApproximateTrimming);
+
+            tasks.Add((messageId, streamKey, task));
+        }
+
+        // Execute all commands in the batch
+        batch.Execute();
+
+        // Collect results - each message tracked individually for partial success handling
+        var streamsToTrim = new HashSet<string>();
+        foreach (var (messageId, streamKey, task) in tasks)
+        {
+            try
+            {
+                var redisStreamId = await task;
+                results.Add(PublishResult.Succeeded(messageId));
+
+                _logger.LogDebug(
+                    "Published message {MessageId} to stream '{StreamKey}' with entry ID {EntryId}",
+                    messageId, streamKey, redisStreamId);
+
+                if (_options.RetentionStrategy == StreamRetentionStrategy.TimeBased)
+                {
+                    streamsToTrim.Add(streamKey);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to publish message {MessageId} to stream '{StreamKey}'",
+                    messageId, streamKey);
+                results.Add(PublishResult.Failed(messageId, ex.Message));
+            }
+        }
+
+        // Apply time-based trimming for affected streams (async, fire-and-forget)
+        foreach (var streamKey in streamsToTrim)
+        {
+            _ = TrimByTimeAsync(db, streamKey);
+        }
+
+        return results;
+    }
+
+    private NameValueEntry[] BuildStreamEntries(PublishContext context)
+    {
+        var messageId = context.Message?.Id.ToString()
+            ?? GetHeaderValue(context.Headers, "message-id")
+            ?? Guid.NewGuid().ToString();
+
+        var correlationId = context.Message?.CorrelationId
+            ?? GetHeaderValue(context.Headers, "correlation-id");
+
+        var causationId = context.Message?.CausationId
+            ?? GetHeaderValue(context.Headers, "causation-id");
+
+        var messageType = context.MessageType?.AssemblyQualifiedName
+            ?? context.MessageType?.FullName
+            ?? GetHeaderValue(context.Headers, "message-type")
+            ?? "unknown";
+
+        return new NameValueEntry[]
+        {
+            new("message-id", messageId),
+            new("message-type", messageType),
+            new("body", context.Body ?? Array.Empty<byte>()),
+            new("headers", SerializeHeaders(context.Headers)),
+            new("timestamp", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString()),
+            new("correlation-id", correlationId ?? string.Empty),
+            new("causation-id", causationId ?? string.Empty),
+            new("content-type", context.ContentType ?? "application/json"),
+            new("persistent", context.Persistent.ToString())
+        };
+    }
+
     private async Task<RedisValue> AddToStreamAsync(
         IDatabase db,
         string streamKey,

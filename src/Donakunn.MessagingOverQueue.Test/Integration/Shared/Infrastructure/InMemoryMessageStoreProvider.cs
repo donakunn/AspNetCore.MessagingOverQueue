@@ -46,6 +46,16 @@ public sealed class InMemoryMessageStoreProvider : IMessageStoreProvider
         TimeSpan lockDuration,
         CancellationToken cancellationToken = default)
     {
+        return AcquireOutboxLockAsync(batchSize, lockDuration, null, 0, cancellationToken);
+    }
+
+    public Task<IReadOnlyList<MessageStoreEntry>> AcquireOutboxLockAsync(
+        int batchSize,
+        TimeSpan lockDuration,
+        int[]? assignedPartitions,
+        int partitionCount,
+        CancellationToken cancellationToken = default)
+    {
         var lockToken = Guid.NewGuid().ToString("N");
         var now = DateTime.UtcNow;
         var lockExpiresAt = now.Add(lockDuration);
@@ -56,12 +66,25 @@ public sealed class InMemoryMessageStoreProvider : IMessageStoreProvider
             var candidates = _entries.Values
                 .Where(e => e.Direction == MessageDirection.Outbox &&
                            (e.Status == MessageStatus.Pending ||
-                            (e.Status == MessageStatus.Processing && e.LockExpiresAt < now)))
+                            (e.Status == MessageStatus.Processing && e.LockExpiresAt < now)));
+
+            // Apply partition filter if specified
+            if (assignedPartitions != null && assignedPartitions.Length > 0 && partitionCount > 0)
+            {
+                candidates = candidates.Where(e =>
+                {
+                    var queueName = e.QueueName ?? string.Empty;
+                    var partition = Math.Abs(queueName.GetHashCode()) % partitionCount;
+                    return assignedPartitions.Contains(partition);
+                });
+            }
+
+            var candidateList = candidates
                 .OrderBy(e => e.CreatedAt)
                 .Take(batchSize)
                 .ToList();
 
-            foreach (var entry in candidates)
+            foreach (var entry in candidateList)
             {
                 entry.Status = MessageStatus.Processing;
                 entry.LockToken = lockToken;
@@ -86,6 +109,23 @@ public sealed class InMemoryMessageStoreProvider : IMessageStoreProvider
         return Task.CompletedTask;
     }
 
+    public Task MarkAsPublishedBatchAsync(IEnumerable<Guid> messageIds, CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        foreach (var messageId in messageIds)
+        {
+            var entry = _entries.Values.FirstOrDefault(e => e.Id == messageId && e.Direction == MessageDirection.Outbox);
+            if (entry != null)
+            {
+                entry.Status = MessageStatus.Published;
+                entry.ProcessedAt = now;
+                entry.LockToken = null;
+                entry.LockExpiresAt = null;
+            }
+        }
+        return Task.CompletedTask;
+    }
+
     public Task MarkAsFailedAsync(Guid messageId, string error, CancellationToken cancellationToken = default)
     {
         var entry = _entries.Values.FirstOrDefault(e => e.Id == messageId && e.Direction == MessageDirection.Outbox);
@@ -96,6 +136,23 @@ public sealed class InMemoryMessageStoreProvider : IMessageStoreProvider
             entry.LastError = error.Length > 4000 ? error[..4000] : error;
             entry.LockToken = null;
             entry.LockExpiresAt = null;
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task MarkAsFailedBatchAsync(IEnumerable<(Guid Id, string Error)> failures, CancellationToken cancellationToken = default)
+    {
+        foreach (var (messageId, error) in failures)
+        {
+            var entry = _entries.Values.FirstOrDefault(e => e.Id == messageId && e.Direction == MessageDirection.Outbox);
+            if (entry != null)
+            {
+                entry.Status = MessageStatus.Failed;
+                entry.RetryCount++;
+                entry.LastError = error.Length > 4000 ? error[..4000] : error;
+                entry.LockToken = null;
+                entry.LockExpiresAt = null;
+            }
         }
         return Task.CompletedTask;
     }

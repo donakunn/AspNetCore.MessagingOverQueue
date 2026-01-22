@@ -59,5 +59,24 @@ public class OutboxOptions
     /// Interval for cleanup operations. Defaults to hourly.
     /// </summary>
     public TimeSpan CleanupInterval { get; set; } = TimeSpan.FromHours(1);
+
+    /// <summary>
+    /// Number of parallel outbox processor workers.
+    /// Each worker processes messages from assigned partitions.
+    /// </summary>
+    public int WorkerCount { get; set; } = 1;
+
+    /// <summary>
+    /// Number of messages to publish in a single batch call to the broker.
+    /// This is separate from BatchSize which controls lock acquisition.
+    /// </summary>
+    public int PublishBatchSize { get; set; } = 10;
+
+    /// <summary>
+    /// Number of partitions for distributing messages across workers.
+    /// Messages are partitioned by QueueName to maintain ordering within a queue.
+    /// Should be >= WorkerCount for optimal distribution.
+    /// </summary>
+    public int PartitionCount { get; set; } = 4;
 }
 

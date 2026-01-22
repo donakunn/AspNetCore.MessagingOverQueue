@@ -1,9 +1,13 @@
 using Donakunn.MessagingOverQueue.Configuration.Options;
 using Donakunn.MessagingOverQueue.Consuming.Middleware;
 using Donakunn.MessagingOverQueue.Persistence;
+using Donakunn.MessagingOverQueue.Persistence.Providers;
 using Donakunn.MessagingOverQueue.Persistence.Repositories;
+using Donakunn.MessagingOverQueue.Providers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Donakunn.MessagingOverQueue.DependencyInjection.Persistence;
 
@@ -23,9 +27,13 @@ internal sealed class PersistenceBuilder : IPersistenceBuilder
 
     public IOutboxBuilder WithOutbox(Action<OutboxOptions>? configure = null)
     {
-        Services.Configure<OutboxOptions>(options =>
+        // Build options to determine worker count
+        var options = new OutboxOptions();
+        configure?.Invoke(options);
+
+        Services.Configure<OutboxOptions>(opts =>
         {
-            configure?.Invoke(options);
+            configure?.Invoke(opts);
         });
 
         // Register repositories (they delegate to the provider)
@@ -35,8 +43,22 @@ internal sealed class PersistenceBuilder : IPersistenceBuilder
         // Register outbox publisher for transactional scenarios
         Services.AddScoped<OutboxPublisher>();
 
-        // Register outbox processor background service
-        Services.AddHostedService<OutboxProcessor>();
+        // Register outbox processor workers
+        for (int i = 0; i < options.WorkerCount; i++)
+        {
+            var workerId = i; // Capture for lambda
+            Services.AddSingleton<Microsoft.Extensions.Hosting.IHostedService>(sp =>
+            {
+                return new OutboxProcessor(
+                    sp.GetRequiredService<IOutboxRepository>(),
+                    sp.GetRequiredService<IInboxRepository>(),
+                    sp.GetRequiredService<IMessageStoreProvider>(),
+                    sp.GetRequiredService<IInternalPublisher>(),
+                    sp.GetRequiredService<IOptions<OutboxOptions>>(),
+                    sp.GetRequiredService<ILogger<OutboxProcessor>>(),
+                    workerId);
+            });
+        }
 
         return new OutboxBuilder(Services, this);
     }
