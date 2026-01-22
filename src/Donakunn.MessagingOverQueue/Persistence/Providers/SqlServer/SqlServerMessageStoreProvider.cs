@@ -1,3 +1,4 @@
+using System.Data;
 using Donakunn.MessagingOverQueue.Persistence.Entities;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
@@ -204,6 +205,74 @@ public sealed class SqlServerMessageStoreProvider : IMessageStoreProvider
         return entries;
     }
 
+    public async Task<IReadOnlyList<MessageStoreEntry>> AcquireOutboxLockAsync(
+        int batchSize,
+        TimeSpan lockDuration,
+        int[]? assignedPartitions,
+        int partitionCount,
+        CancellationToken cancellationToken = default)
+    {
+        // If no partitions specified, delegate to the non-partitioned method
+        if (assignedPartitions == null || assignedPartitions.Length == 0)
+        {
+            return await AcquireOutboxLockAsync(batchSize, lockDuration, cancellationToken);
+        }
+
+        var lockToken = Guid.NewGuid().ToString("N");
+        var now = DateTime.UtcNow;
+        var lockExpiresAt = now.Add(lockDuration);
+
+        // Build partition filter - partition by QueueName using CHECKSUM
+        var partitionParams = string.Join(",", assignedPartitions.Select((_, i) => $"@Partition{i}"));
+        var sql = $"""
+            UPDATE TOP (@BatchSize) {_tableName}
+            SET Status = @ProcessingStatus,
+                LockToken = @LockToken,
+                LockExpiresAt = @LockExpiresAt
+            OUTPUT inserted.Id, inserted.Direction, inserted.MessageType, inserted.Payload,
+                   inserted.ExchangeName, inserted.RoutingKey, inserted.QueueName, inserted.Headers,
+                   inserted.HandlerType, inserted.CreatedAt, inserted.ProcessedAt,
+                   inserted.Status, inserted.RetryCount, inserted.LastError,
+                   inserted.LockToken, inserted.LockExpiresAt, inserted.CorrelationId
+            WHERE Direction = @OutboxDirection
+              AND (Status = @PendingStatus OR (Status = @ProcessingStatus AND LockExpiresAt < @Now))
+              AND ABS(CHECKSUM(ISNULL(QueueName, ''))) % @PartitionCount IN ({partitionParams})
+            """;
+
+        await using var connection = await CreateConnectionAsync(cancellationToken);
+        await using var command = new SqlCommand(sql, connection);
+        command.CommandTimeout = _options.CommandTimeoutSeconds;
+        command.Parameters.AddWithValue("@BatchSize", batchSize);
+        command.Parameters.AddWithValue("@ProcessingStatus", (int)MessageStatus.Processing);
+        command.Parameters.AddWithValue("@LockToken", lockToken);
+        command.Parameters.AddWithValue("@LockExpiresAt", lockExpiresAt);
+        command.Parameters.AddWithValue("@OutboxDirection", (int)MessageDirection.Outbox);
+        command.Parameters.AddWithValue("@PendingStatus", (int)MessageStatus.Pending);
+        command.Parameters.AddWithValue("@Now", now);
+        command.Parameters.AddWithValue("@PartitionCount", partitionCount);
+
+        for (int i = 0; i < assignedPartitions.Length; i++)
+        {
+            command.Parameters.AddWithValue($"@Partition{i}", assignedPartitions[i]);
+        }
+
+        var entries = new List<MessageStoreEntry>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            entries.Add(MapEntry(reader));
+        }
+
+        if (entries.Count > 0)
+        {
+            _logger.LogDebug(
+                "Acquired lock on {Count} outbox messages with token {LockToken} for partitions [{Partitions}]",
+                entries.Count, lockToken, string.Join(",", assignedPartitions));
+        }
+
+        return entries;
+    }
+
     public async Task MarkAsPublishedAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
         const string sql = """
@@ -249,6 +318,130 @@ public sealed class SqlServerMessageStoreProvider : IMessageStoreProvider
         command.Parameters.AddWithValue("@Direction", (int)MessageDirection.Outbox);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task MarkAsPublishedBatchAsync(IEnumerable<Guid> messageIds, CancellationToken cancellationToken = default)
+    {
+        var idList = messageIds.ToList();
+        if (idList.Count == 0) return;
+
+        // Use table-valued parameter for efficient batch update
+        const string sql = """
+            UPDATE m
+            SET Status = @Status,
+                ProcessedAt = @ProcessedAt,
+                LockToken = NULL,
+                LockExpiresAt = NULL
+            FROM {0} m
+            INNER JOIN @Ids ids ON m.Id = ids.Id
+            WHERE m.Direction = @Direction
+            """;
+
+        await using var connection = await CreateConnectionAsync(cancellationToken);
+        await using var command = new SqlCommand(string.Format(sql, _tableName), connection);
+        command.CommandTimeout = _options.CommandTimeoutSeconds;
+        command.Parameters.AddWithValue("@Status", (int)MessageStatus.Published);
+        command.Parameters.AddWithValue("@ProcessedAt", DateTime.UtcNow);
+        command.Parameters.AddWithValue("@Direction", (int)MessageDirection.Outbox);
+
+        var idsParam = command.Parameters.AddWithValue("@Ids", CreateGuidTable(idList));
+        idsParam.SqlDbType = SqlDbType.Structured;
+        idsParam.TypeName = "dbo.GuidList";
+
+        try
+        {
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch (SqlException ex) when (ex.Message.Contains("GuidList"))
+        {
+            // TVP type doesn't exist, fall back to individual updates
+            _logger.LogDebug("GuidList type not found, falling back to individual updates");
+            await MarkAsPublishedBatchFallbackAsync(idList, cancellationToken);
+        }
+    }
+
+    private async Task MarkAsPublishedBatchFallbackAsync(List<Guid> messageIds, CancellationToken cancellationToken)
+    {
+        // Fallback: use IN clause with parameterized IDs (efficient for reasonable batch sizes)
+        var paramNames = string.Join(",", messageIds.Select((_, i) => $"@Id{i}"));
+        var sql = $"""
+            UPDATE {_tableName}
+            SET Status = @Status,
+                ProcessedAt = @ProcessedAt,
+                LockToken = NULL,
+                LockExpiresAt = NULL
+            WHERE Id IN ({paramNames}) AND Direction = @Direction
+            """;
+
+        await using var connection = await CreateConnectionAsync(cancellationToken);
+        await using var command = new SqlCommand(sql, connection);
+        command.CommandTimeout = _options.CommandTimeoutSeconds;
+        command.Parameters.AddWithValue("@Status", (int)MessageStatus.Published);
+        command.Parameters.AddWithValue("@ProcessedAt", DateTime.UtcNow);
+        command.Parameters.AddWithValue("@Direction", (int)MessageDirection.Outbox);
+
+        for (int i = 0; i < messageIds.Count; i++)
+        {
+            command.Parameters.AddWithValue($"@Id{i}", messageIds[i]);
+        }
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task MarkAsFailedBatchAsync(IEnumerable<(Guid Id, string Error)> failures, CancellationToken cancellationToken = default)
+    {
+        var failureList = failures.ToList();
+        if (failureList.Count == 0) return;
+
+        // For batch failures with different error messages, we need individual updates
+        // But we can batch them in a single connection/transaction
+        await using var connection = await CreateConnectionAsync(cancellationToken);
+        await using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            const string sql = """
+                UPDATE {0}
+                SET Status = @Status,
+                    RetryCount = RetryCount + 1,
+                    LastError = @LastError,
+                    LockToken = NULL,
+                    LockExpiresAt = NULL
+                WHERE Id = @Id AND Direction = @Direction
+                """;
+
+            foreach (var (id, error) in failureList)
+            {
+                var truncatedError = error.Length > 4000 ? error[..4000] : error;
+
+                await using var command = new SqlCommand(string.Format(sql, _tableName), connection, transaction);
+                command.CommandTimeout = _options.CommandTimeoutSeconds;
+                command.Parameters.AddWithValue("@Status", (int)MessageStatus.Failed);
+                command.Parameters.AddWithValue("@LastError", truncatedError);
+                command.Parameters.AddWithValue("@Id", id);
+                command.Parameters.AddWithValue("@Direction", (int)MessageDirection.Outbox);
+
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+
+    private static DataTable CreateGuidTable(IEnumerable<Guid> ids)
+    {
+        var table = new DataTable();
+        table.Columns.Add("Id", typeof(Guid));
+        foreach (var id in ids)
+        {
+            table.Rows.Add(id);
+        }
+        return table;
     }
 
     public async Task ReleaseLockAsync(Guid messageId, CancellationToken cancellationToken = default)

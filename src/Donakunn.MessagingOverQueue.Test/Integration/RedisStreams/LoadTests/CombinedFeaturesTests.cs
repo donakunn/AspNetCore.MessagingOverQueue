@@ -1,9 +1,9 @@
-using System.Diagnostics;
 using Donakunn.MessagingOverQueue.Abstractions.Publishing;
 using Donakunn.MessagingOverQueue.Consuming.Middleware;
 using MessagingOverQueue.Test.Integration.RedisStreams.LoadTests.Infrastructure;
 using MessagingOverQueue.Test.Integration.RedisStreams.LoadTests.TestMessages;
 using Microsoft.Extensions.DependencyInjection;
+using System.Diagnostics;
 using Xunit.Abstractions;
 
 namespace MessagingOverQueue.Test.Integration.RedisStreams.LoadTests;
@@ -93,6 +93,7 @@ public class CombinedFeaturesTests : LoadTestBase
             outboxBatchSize: 50,
             outboxProcessingInterval: TimeSpan.FromMilliseconds(100),
             retry: true,
+            idempotency: true,
             retryMaxAttempts: 3,
             retryInitialDelay: TimeSpan.FromMilliseconds(100));
 
