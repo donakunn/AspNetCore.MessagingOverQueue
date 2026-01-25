@@ -76,7 +76,7 @@ public sealed class OutboxProcessor : BackgroundService
         {
             try
             {
-                await _provider.EnsureSchemaAsync(stoppingToken);
+                await _provider.EnsureSchemaAsync(stoppingToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -93,11 +93,11 @@ public sealed class OutboxProcessor : BackgroundService
         {
             try
             {
-                await ProcessBatchAsync(stoppingToken);
+                await ProcessBatchAsync(stoppingToken).ConfigureAwait(false);
 
                 if (_options.AutoCleanup && ShouldRunCleanup())
                 {
-                    await CleanupAsync(stoppingToken);
+                    await CleanupAsync(stoppingToken).ConfigureAwait(false);
                     _lastCleanupTime = DateTime.UtcNow;
                 }
             }
@@ -112,7 +112,7 @@ public sealed class OutboxProcessor : BackgroundService
 
             try
             {
-                await Task.Delay(_options.ProcessingInterval, stoppingToken);
+                await Task.Delay(_options.ProcessingInterval, stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -136,7 +136,7 @@ public sealed class OutboxProcessor : BackgroundService
             _options.LockDuration,
             _assignedPartitions,
             _options.PartitionCount,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
 
         if (messages.Count == 0)
             return;
@@ -144,8 +144,8 @@ public sealed class OutboxProcessor : BackgroundService
         _logger.LogDebug("Worker {WorkerId} processing {Count} outbox messages", _workerId, messages.Count);
 
         // Filter out messages that exceeded max retry attempts
-        var messagesToProcess = new List<MessageStoreEntry>();
-        var messagesToFail = new List<(Guid Id, string Error)>();
+        var messagesToProcess = new List<MessageStoreEntry>(messages.Count);
+        var messagesToFail = new List<(Guid Id, string Error)>(Math.Min(messages.Count / 10 + 1, 10));
 
         foreach (var message in messages)
         {
@@ -163,7 +163,7 @@ public sealed class OutboxProcessor : BackgroundService
         // Mark exceeded retry messages as failed
         if (messagesToFail.Count > 0)
         {
-            await _repository.MarkAsFailedBatchAsync(messagesToFail, cancellationToken);
+            await _repository.MarkAsFailedBatchAsync(messagesToFail, cancellationToken).ConfigureAwait(false);
         }
 
         if (messagesToProcess.Count == 0)
@@ -177,7 +177,7 @@ public sealed class OutboxProcessor : BackgroundService
             if (cancellationToken.IsCancellationRequested)
                 break;
 
-            await ProcessPublishBatchAsync(batch, cancellationToken);
+            await ProcessPublishBatchAsync(batch, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -195,7 +195,7 @@ public sealed class OutboxProcessor : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error building publish context for message {MessageId}", message.Id);
-                await _repository.MarkAsFailedAsync(message.Id, ex.Message, cancellationToken);
+                await _repository.MarkAsFailedAsync(message.Id, ex.Message, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -205,11 +205,11 @@ public sealed class OutboxProcessor : BackgroundService
         // Publish batch - returns individual results for partial success
         var publishResults = await _internalPublisher.PublishBatchAsync(
             contexts.Select(c => c.Context).ToList(),
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
 
         // Map results back to message IDs
-        var succeeded = new List<Guid>();
-        var failed = new List<(Guid Id, string Error)>();
+        var succeeded = new List<Guid>(contexts.Count);
+        var failed = new List<(Guid Id, string Error)>(Math.Min(contexts.Count / 10 + 1, 10));
 
         for (int i = 0; i < publishResults.Count; i++)
         {
@@ -229,13 +229,14 @@ public sealed class OutboxProcessor : BackgroundService
         }
 
         // Batch update statuses in parallel
-        var updateTasks = new List<Task>();
+        var updateTasks = new List<Task>(2);
         if (succeeded.Count > 0)
             updateTasks.Add(_repository.MarkAsPublishedBatchAsync(succeeded, cancellationToken));
         if (failed.Count > 0)
             updateTasks.Add(_repository.MarkAsFailedBatchAsync(failed, cancellationToken));
 
-        await Task.WhenAll(updateTasks);
+        if (updateTasks.Count > 0)
+            await Task.WhenAll(updateTasks).ConfigureAwait(false);
     }
 
     private Publishing.Middleware.PublishContext BuildPublishContext(MessageStoreEntry message)
@@ -283,8 +284,8 @@ public sealed class OutboxProcessor : BackgroundService
     {
         try
         {
-            await _inboxRepository.CleanupAsync(_options.RetentionPeriod, cancellationToken);
-            await _repository.CleanupAsync(_options.RetentionPeriod, cancellationToken);
+            await _inboxRepository.CleanupAsync(_options.RetentionPeriod, cancellationToken).ConfigureAwait(false);
+            await _repository.CleanupAsync(_options.RetentionPeriod, cancellationToken).ConfigureAwait(false);
 
             _logger.LogDebug("Completed message store cleanup");
         }

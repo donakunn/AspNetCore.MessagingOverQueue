@@ -5,13 +5,11 @@ namespace Donakunn.MessagingOverQueue.Publishing.Middleware;
 /// </summary>
 public class PublishPipeline
 {
-    private readonly IEnumerable<IPublishMiddleware> _middlewares;
-    private readonly Func<PublishContext, CancellationToken, Task> _terminalHandler;
+    private readonly Func<PublishContext, CancellationToken, Task> _pipeline;
 
     public PublishPipeline(IEnumerable<IPublishMiddleware> middlewares, Func<PublishContext, CancellationToken, Task> terminalHandler)
     {
-        _middlewares = middlewares;
-        _terminalHandler = terminalHandler;
+        _pipeline = BuildPipeline(middlewares, terminalHandler);
     }
 
     /// <summary>
@@ -19,15 +17,16 @@ public class PublishPipeline
     /// </summary>
     public Task ExecuteAsync(PublishContext context, CancellationToken cancellationToken)
     {
-        var pipeline = BuildPipeline();
-        return pipeline(context, cancellationToken);
+        return _pipeline(context, cancellationToken);
     }
 
-    private Func<PublishContext, CancellationToken, Task> BuildPipeline()
+    private static Func<PublishContext, CancellationToken, Task> BuildPipeline(
+        IEnumerable<IPublishMiddleware> middlewares,
+        Func<PublishContext, CancellationToken, Task> terminalHandler)
     {
-        Func<PublishContext, CancellationToken, Task> current = _terminalHandler;
+        Func<PublishContext, CancellationToken, Task> current = terminalHandler;
 
-        foreach (var middleware in _middlewares.Reverse())
+        foreach (var middleware in middlewares.Reverse())
         {
             var next = current;
             var currentMiddleware = middleware;

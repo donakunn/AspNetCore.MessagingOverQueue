@@ -37,13 +37,13 @@ public class RabbitMqConnectionPool : IRabbitMqConnectionPool
         if (IsConnected)
             return;
 
-        await _connectionLock.WaitAsync(cancellationToken);
+        await _connectionLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (IsConnected)
                 return;
 
-            await CreateConnectionAsync(cancellationToken);
+            await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -53,8 +53,8 @@ public class RabbitMqConnectionPool : IRabbitMqConnectionPool
 
     public async Task<IChannel> GetChannelAsync(CancellationToken cancellationToken = default)
     {
-        await EnsureConnectedAsync(cancellationToken);
-        await _channelSemaphore.WaitAsync(cancellationToken);
+        await EnsureConnectedAsync(cancellationToken).ConfigureAwait(false);
+        await _channelSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
         if (_channelPool.TryDequeue(out var channel) && channel.IsOpen)
         {
@@ -63,7 +63,7 @@ public class RabbitMqConnectionPool : IRabbitMqConnectionPool
 
         try
         {
-            return await CreateChannelAsync(cancellationToken);
+            return await CreateChannelAsync(cancellationToken).ConfigureAwait(false);
         }
         catch
         {
@@ -83,8 +83,8 @@ public class RabbitMqConnectionPool : IRabbitMqConnectionPool
 
     public async Task<IChannel> CreateDedicatedChannelAsync(CancellationToken cancellationToken = default)
     {
-        await EnsureConnectedAsync(cancellationToken);
-        return await CreateChannelAsync(cancellationToken);
+        await EnsureConnectedAsync(cancellationToken).ConfigureAwait(false);
+        return await CreateChannelAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task CreateConnectionAsync(CancellationToken cancellationToken)
@@ -114,7 +114,7 @@ public class RabbitMqConnectionPool : IRabbitMqConnectionPool
         _logger.LogInformation("Connecting to RabbitMQ at {Host}:{Port}/{VirtualHost}",
             _options.HostName, _options.Port, _options.VirtualHost);
 
-        _connection = await factory.CreateConnectionAsync(cancellationToken);
+        _connection = await factory.CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
 
         _connection.ConnectionShutdownAsync += OnConnectionShutdownAsync;
         _connection.ConnectionBlockedAsync += OnConnectionBlockedAsync;
@@ -130,7 +130,7 @@ public class RabbitMqConnectionPool : IRabbitMqConnectionPool
             throw new InvalidOperationException("Connection is not open");
         }
 
-        var channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken);
+        var channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
 
         _logger.LogDebug("Created new channel");
         return channel;
@@ -165,7 +165,7 @@ public class RabbitMqConnectionPool : IRabbitMqConnectionPool
         {
             try
             {
-                await channel.CloseAsync();
+                await channel.CloseAsync().ConfigureAwait(false);
                 channel.Dispose();
             }
             catch (Exception ex)
@@ -178,7 +178,7 @@ public class RabbitMqConnectionPool : IRabbitMqConnectionPool
         {
             try
             {
-                await _connection.CloseAsync();
+                await _connection.CloseAsync().ConfigureAwait(false);
                 _connection.Dispose();
             }
             catch (Exception ex)
