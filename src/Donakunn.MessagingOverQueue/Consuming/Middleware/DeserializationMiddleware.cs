@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Donakunn.MessagingOverQueue.Abstractions.Messages;
 using Donakunn.MessagingOverQueue.Abstractions.Serialization;
 using Microsoft.Extensions.Logging;
@@ -12,6 +13,7 @@ public class DeserializationMiddleware : IOrderedConsumeMiddleware
     private readonly IMessageSerializer _serializer;
     private readonly IMessageTypeResolver _typeResolver;
     private readonly ILogger<DeserializationMiddleware> _logger;
+    private readonly ConcurrentDictionary<string, Type?> _resolvedTypeCache = new();
 
     public DeserializationMiddleware(
         IMessageSerializer serializer,
@@ -51,7 +53,10 @@ public class DeserializationMiddleware : IOrderedConsumeMiddleware
                 return;
             }
 
-            var messageType = _typeResolver.ResolveType(messageTypeName);
+            var messageType = _resolvedTypeCache.GetOrAdd(
+                messageTypeName,
+                typeName => _typeResolver.ResolveType(typeName));
+
             if (messageType == null)
             {
                 _logger.LogWarning("Could not resolve message type: {MessageType}", messageTypeName);

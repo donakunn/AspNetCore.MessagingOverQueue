@@ -3,7 +3,7 @@ using Donakunn.MessagingOverQueue.Abstractions.Messages;
 namespace Donakunn.MessagingOverQueue.Abstractions.Publishing;
 
 /// <summary>
-/// Interface for publishing messages to RabbitMQ.
+/// Interface for publishing messages to the message broker.
 /// </summary>
 public interface IMessagePublisher
 {

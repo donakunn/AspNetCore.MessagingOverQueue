@@ -1,7 +1,7 @@
 namespace Donakunn.MessagingOverQueue.Topology.Abstractions;
 
 /// <summary>
-/// Defines naming conventions for RabbitMQ topology.
+/// Defines naming conventions for messaging topology.
 /// </summary>
 public interface ITopologyNamingConvention
 {
