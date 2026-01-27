@@ -1,32 +1,32 @@
 namespace Donakunn.MessagingOverQueue.Configuration.Options;
 
 /// <summary>
-/// Configuration options for RabbitMQ connection.
+/// Configuration options for messaging connection.
 /// </summary>
-public class RabbitMqOptions
+public class MessagingOptions
 {
     /// <summary>
     /// Configuration section name.
     /// </summary>
-    public const string SectionName = "RabbitMq";
+    public const string SectionName = "Messaging";
 
     /// <summary>
-    /// The RabbitMQ host name.
+    /// The message broker host name.
     /// </summary>
     public string HostName { get; set; } = "localhost";
 
     /// <summary>
-    /// The RabbitMQ port.
+    /// The message broker port.
     /// </summary>
     public int Port { get; set; } = 5672;
 
     /// <summary>
-    /// The RabbitMQ username.
+    /// The message broker username.
     /// </summary>
     public string UserName { get; set; } = "guest";
 
     /// <summary>
-    /// The RabbitMQ password.
+    /// The message broker password.
     /// </summary>
     public string Password { get; set; } = "guest";
 

@@ -1,7 +1,8 @@
 namespace Donakunn.MessagingOverQueue.Topology.Abstractions;
 
 /// <summary>
-/// Declares topology on RabbitMQ broker.
+/// Declares topology on the message broker.
+/// Each messaging provider implements this interface to declare topology on their specific broker.
 /// </summary>
 public interface ITopologyDeclarer
 {

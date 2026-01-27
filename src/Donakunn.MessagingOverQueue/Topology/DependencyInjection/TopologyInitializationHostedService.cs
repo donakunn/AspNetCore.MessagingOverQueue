@@ -11,7 +11,7 @@ namespace Donakunn.MessagingOverQueue.Topology.DependencyInjection;
 
 /// <summary>
 /// Hosted service that initializes topology on startup.
-/// Responsible only for declaring topology to RabbitMQ - handler registration is done at configuration time.
+/// Responsible only for declaring topology to the message broker - handler registration is done at configuration time.
 /// </summary>
 internal sealed class TopologyInitializationHostedService : IHostedService
 {
@@ -31,7 +31,7 @@ internal sealed class TopologyInitializationHostedService : IHostedService
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Initializing RabbitMQ topology");
+        _logger.LogInformation("Initializing messaging topology");
 
         var registry = _serviceProvider.GetRequiredService<ITopologyRegistry>();
         var declarer = _serviceProvider.GetRequiredService<ITopologyDeclarer>();
@@ -59,12 +59,12 @@ internal sealed class TopologyInitializationHostedService : IHostedService
             RegisterManualTopologies(registry, configuration.Builder);
         }
 
-        // Declare all registered topologies to RabbitMQ
+        // Declare all registered topologies to message broker
         var topologies = registry.GetAllTopologies();
 
         if (topologies.Count > 0)
         {
-            _logger.LogInformation("Declaring {Count} topologies on RabbitMQ broker", topologies.Count);
+            _logger.LogInformation("Declaring {Count} topologies on message broker", topologies.Count);
             await declarer.DeclareAllAsync(topologies, cancellationToken);
             _logger.LogInformation("Topology initialization completed successfully");
         }

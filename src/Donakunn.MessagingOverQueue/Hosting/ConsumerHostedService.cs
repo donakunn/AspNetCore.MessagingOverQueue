@@ -1,8 +1,7 @@
 using Donakunn.MessagingOverQueue.Configuration.Options;
-using Donakunn.MessagingOverQueue.Connection;
-using Donakunn.MessagingOverQueue.Consuming;
 using Donakunn.MessagingOverQueue.Consuming.Handlers;
 using Donakunn.MessagingOverQueue.Consuming.Middleware;
+using Donakunn.MessagingOverQueue.Providers;
 using Donakunn.MessagingOverQueue.Topology.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -11,56 +10,84 @@ using Microsoft.Extensions.Logging;
 namespace Donakunn.MessagingOverQueue.Hosting;
 
 /// <summary>
-/// Hosted service that manages message consumers.
-/// Single responsibility: start and stop consumers based on registered ConsumerRegistrations.
+/// Provider-agnostic hosted service that manages message consumers.
+/// Uses <see cref="IMessagingProvider"/> to create consumers, making it work with any messaging backend.
 /// </summary>
-public sealed class ConsumerHostedService(
-    IServiceProvider serviceProvider,
-    IEnumerable<ConsumerRegistration> registrations,
-    ILogger<ConsumerHostedService> logger,
-    TopologyReadySignal? topologyReadySignal = null) : IHostedService, IAsyncDisposable
+/// <remarks>
+/// This service coordinates consumer lifecycle:
+/// 1. Waits for topology initialization to complete (if signal is registered)
+/// 2. Creates consumers via the registered messaging provider
+/// 3. Starts all consumers with a message handler that invokes the middleware pipeline
+/// 4. Gracefully stops consumers on shutdown
+/// </remarks>
+public sealed class ConsumerHostedService : IHostedService, IAsyncDisposable
 {
-    private readonly List<RabbitMqConsumer> _consumers = [];
+    private readonly IServiceProvider _serviceProvider;
+    private readonly IEnumerable<ConsumerRegistration> _registrations;
+    private readonly ILogger<ConsumerHostedService> _logger;
+    private readonly TopologyReadySignal? _topologyReadySignal;
+    private readonly List<IInternalConsumer> _consumers = [];
     private bool _disposed;
+
+    public ConsumerHostedService(
+        IServiceProvider serviceProvider,
+        IEnumerable<ConsumerRegistration> registrations,
+        ILogger<ConsumerHostedService> logger,
+        TopologyReadySignal? topologyReadySignal = null)
+    {
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _registrations = registrations ?? throw new ArgumentNullException(nameof(registrations));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _topologyReadySignal = topologyReadySignal;
+    }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var registrationList = registrations.ToList();
+        var registrationList = _registrations.ToList();
 
         if (registrationList.Count == 0)
         {
-            logger.LogDebug("No consumers registered");
+            _logger.LogDebug("No consumers registered");
             return;
         }
 
         // Wait for topology to be declared before starting consumers
-        if (topologyReadySignal != null)
+        if (_topologyReadySignal != null)
         {
-            logger.LogDebug("Waiting for topology initialization to complete");
-            await topologyReadySignal.WaitAsync(cancellationToken);
-            logger.LogDebug("Topology initialization completed, starting consumers");
+            _logger.LogDebug("Waiting for topology initialization to complete");
+            await _topologyReadySignal.WaitAsync(cancellationToken);
+            _logger.LogDebug("Topology initialization completed, starting consumers");
         }
 
-        logger.LogInformation("Starting consumer hosted service with {Count} consumers", registrationList.Count);
+        var messagingProvider = _serviceProvider.GetRequiredService<IMessagingProvider>();
+        var handlerInvokerRegistry = _serviceProvider.GetRequiredService<IHandlerInvokerRegistry>();
+
+        _logger.LogInformation(
+            "Starting consumer hosted service with {Count} consumers using {Provider} provider",
+            registrationList.Count,
+            messagingProvider.ProviderName);
 
         foreach (var registration in registrationList)
         {
             try
             {
-                var consumer = CreateConsumer(registration);
+                var consumer = await messagingProvider.CreateConsumerAsync(registration.Options, cancellationToken);
                 _consumers.Add(consumer);
 
-                await consumer.StartAsync(cancellationToken);
-                logger.LogInformation("Started consumer for queue '{Queue}'", registration.Options.QueueName);
+                // Create handler that invokes the message pipeline
+                var handler = CreateMessageHandler(handlerInvokerRegistry);
+                await consumer.StartAsync(handler, cancellationToken);
+
+                _logger.LogInformation("Started consumer for '{Source}'", consumer.SourceName);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to start consumer for queue '{Queue}'", registration.Options.QueueName);
+                _logger.LogError(ex, "Failed to start consumer for queue '{Queue}'", registration.Options.QueueName);
                 throw;
             }
         }
 
-        logger.LogInformation("All consumers started ({Count} total)", _consumers.Count);
+        _logger.LogInformation("All consumers started ({Count} total)", _consumers.Count);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
@@ -68,29 +95,64 @@ public sealed class ConsumerHostedService(
         if (_consumers.Count == 0)
             return;
 
-        logger.LogInformation("Stopping consumer hosted service");
+        _logger.LogInformation("Stopping consumer hosted service");
 
         var stopTasks = _consumers.Select(c => StopConsumerSafelyAsync(c, cancellationToken));
         await Task.WhenAll(stopTasks);
 
-        logger.LogInformation("All consumers stopped");
+        _logger.LogInformation("All consumers stopped");
     }
 
-    private RabbitMqConsumer CreateConsumer(ConsumerRegistration registration)
+    /// <summary>
+    /// Creates a message handler that invokes the middleware pipeline and then the handler invoker.
+    /// </summary>
+    private Func<ConsumeContext, CancellationToken, Task> CreateMessageHandler(
+        IHandlerInvokerRegistry handlerInvokerRegistry)
     {
-        var connectionPool = serviceProvider.GetRequiredService<IRabbitMqConnectionPool>();
-        var handlerInvokerRegistry = serviceProvider.GetRequiredService<IHandlerInvokerRegistry>();
-        var consumerLogger = serviceProvider.GetRequiredService<ILogger<RabbitMqConsumer>>();
+        return async (context, cancellationToken) =>
+        {
+            // Create a scope to resolve middlewares with scoped dependencies
+            using var scope = _serviceProvider.CreateScope();
+            var scopedProvider = scope.ServiceProvider;
+            var middlewares = scopedProvider.GetServices<IConsumeMiddleware>();
 
-        return new RabbitMqConsumer(
-            connectionPool,
-            serviceProvider,
-            handlerInvokerRegistry,
-            registration.Options,
-            consumerLogger);
+            var pipeline = new ConsumePipeline(
+                middlewares,
+                (ctx, ct) => InvokeHandlerAsync(ctx, ct, scopedProvider, handlerInvokerRegistry));
+
+            await pipeline.ExecuteAsync(context, cancellationToken);
+        };
     }
 
-    private async Task StopConsumerSafelyAsync(RabbitMqConsumer consumer, CancellationToken cancellationToken)
+    /// <summary>
+    /// Invokes the handler for a deserialized message.
+    /// </summary>
+    private static async Task InvokeHandlerAsync(
+        ConsumeContext context,
+        CancellationToken cancellationToken,
+        IServiceProvider scopedProvider,
+        IHandlerInvokerRegistry handlerInvokerRegistry)
+    {
+        if (context.Message == null || context.MessageType == null)
+        {
+            return;
+        }
+
+        var invoker = handlerInvokerRegistry.GetInvoker(context.MessageType);
+        if (invoker == null)
+        {
+            return;
+        }
+
+        await invoker.InvokeAsync(
+            scopedProvider,
+            context.Message,
+            context.MessageContext,
+            context.Data,
+            cancellationToken);
+    }
+
+    private async Task StopConsumerSafelyAsync(IInternalConsumer consumer, CancellationToken cancellationToken)
     {
         try
         {
@@ -98,7 +160,7 @@ public sealed class ConsumerHostedService(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Error stopping consumer");
+            _logger.LogWarning(ex, "Error stopping consumer '{Source}'", consumer.SourceName);
         }
     }
 
@@ -142,4 +204,3 @@ public sealed class ConsumerRegistration
     /// </summary>
     public string? RoutingKey { get; init; }
 }
-

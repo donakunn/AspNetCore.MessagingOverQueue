@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 namespace Donakunn.MessagingOverQueue.Topology.Conventions;
 
 /// <summary>
-/// Default naming convention for RabbitMQ topology.
+/// Default naming convention for messaging topology.
 /// Uses message type names with consistent formatting.
 /// </summary>
 /// <remarks>

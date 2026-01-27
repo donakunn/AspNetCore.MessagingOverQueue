@@ -24,7 +24,7 @@ public static class TopologyServiceCollectionExtensions
     /// - Handler DI registrations
     /// - Handler invokers (reflection-free dispatch)
     /// - Consumer registrations
-    /// - RabbitMQ topology (exchanges, queues, bindings)
+    /// - Messaging topology (exchanges, queues, bindings)
     /// </summary>
     /// <param name="builder">The messaging builder.</param>
     /// <param name="configure">Action to configure topology.</param>
@@ -125,8 +125,9 @@ public static class TopologyServiceCollectionExtensions
             return new ConventionBasedTopologyProvider(namingConvention, registry, topologyBuilder.ProviderOptions);
         });
 
-        // Register topology declarer (declares topology to RabbitMQ)
-        services.TryAddSingleton<ITopologyDeclarer, TopologyDeclarer>();
+        // Note: ITopologyDeclarer is NOT registered here.
+        // Each messaging provider (RabbitMQ, Redis Streams, etc.) must register its own
+        // ITopologyDeclarer implementation that knows how to declare topology on that broker.
 
         // Remove any default routing resolver to ensure it uses our topology provider
         services.RemoveAll<IMessageRoutingResolver>();
