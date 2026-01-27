@@ -36,8 +36,8 @@ public class RabbitMqConsumer(
         logger.LogInformation("Starting consumer for queue '{Queue}' with prefetch {Prefetch}",
             options.QueueName, options.PrefetchCount);
 
-        _channel = await connectionPool.CreateDedicatedChannelAsync(cancellationToken);
-        await _channel.BasicQosAsync(0, options.PrefetchCount, false, cancellationToken);
+        _channel = await connectionPool.CreateDedicatedChannelAsync(cancellationToken).ConfigureAwait(false);
+        await _channel.BasicQosAsync(0, options.PrefetchCount, false, cancellationToken).ConfigureAwait(false);
 
         var consumer = new AsyncEventingBasicConsumer(_channel);
         consumer.ReceivedAsync += OnMessageReceivedAsync;
@@ -47,7 +47,7 @@ public class RabbitMqConsumer(
             autoAck: options.AutoAck,
             consumerTag: options.ConsumerTag ?? $"consumer-{Guid.NewGuid():N}",
             consumer: consumer,
-            cancellationToken: cancellationToken);
+            cancellationToken: cancellationToken).ConfigureAwait(false);
 
         _isRunning = true;
         logger.LogInformation("Consumer started with tag '{ConsumerTag}'", _consumerTag);
@@ -60,13 +60,13 @@ public class RabbitMqConsumer(
 
         logger.LogInformation("Stopping consumer '{ConsumerTag}'", _consumerTag);
 
-        await _stoppingCts.CancelAsync();
+        await _stoppingCts.CancelAsync().ConfigureAwait(false);
 
         if (_channel != null && _consumerTag != null)
         {
             try
             {
-                await _channel.BasicCancelAsync(_consumerTag, cancellationToken: cancellationToken);
+                await _channel.BasicCancelAsync(_consumerTag, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -80,21 +80,21 @@ public class RabbitMqConsumer(
 
     private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs args)
     {
-        await _concurrencySemaphore.WaitAsync(_stoppingCts.Token);
+        await _concurrencySemaphore.WaitAsync(_stoppingCts.Token).ConfigureAwait(false);
 
         try
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(_stoppingCts.Token);
             cts.CancelAfter(options.ProcessingTimeout);
 
-            await ProcessMessageAsync(args, cts.Token);
+            await ProcessMessageAsync(args, cts.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (_stoppingCts.IsCancellationRequested)
         {
             logger.LogDebug("Message processing cancelled due to shutdown");
             if (!options.AutoAck && _channel != null)
             {
-                await _channel.BasicNackAsync(args.DeliveryTag, false, true);
+                await _channel.BasicNackAsync(args.DeliveryTag, false, true).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
@@ -102,7 +102,7 @@ public class RabbitMqConsumer(
             logger.LogError(ex, "Error processing message, delivery tag: {DeliveryTag}", args.DeliveryTag);
             if (!options.AutoAck && _channel != null)
             {
-                await _channel.BasicNackAsync(args.DeliveryTag, false, options.RequeueOnFailure);
+                await _channel.BasicNackAsync(args.DeliveryTag, false, options.RequeueOnFailure).ConfigureAwait(false);
             }
         }
         finally
@@ -113,11 +113,20 @@ public class RabbitMqConsumer(
 
     private async Task ProcessMessageAsync(BasicDeliverEventArgs args, CancellationToken cancellationToken)
     {
-        var headers = args.BasicProperties.Headers?
-            .ToDictionary(
-                x => x.Key,
-                x => x.Value is byte[] bytes ? System.Text.Encoding.UTF8.GetString(bytes) : x.Value)
-            ?? [];
+        var rawHeaders = args.BasicProperties.Headers;
+        var headers = rawHeaders != null
+            ? new Dictionary<string, object>(rawHeaders.Count)
+            : new Dictionary<string, object>();
+
+        if (rawHeaders != null)
+        {
+            foreach (var kvp in rawHeaders)
+            {
+                headers[kvp.Key] = kvp.Value is byte[] bytes
+                    ? System.Text.Encoding.UTF8.GetString(bytes)
+                    : kvp.Value;
+            }
+        }
 
         var messageContext = new MessageContext(
             messageId: Guid.TryParse(args.BasicProperties.MessageId, out var id) ? id : Guid.NewGuid(),
@@ -143,17 +152,17 @@ public class RabbitMqConsumer(
         var middlewares = scope.ServiceProvider.GetServices<IConsumeMiddleware>();
         
         var pipeline = new ConsumePipeline(middlewares, (ctx, ct) => HandleMessageAsync(ctx, ct, scope.ServiceProvider));
-        await pipeline.ExecuteAsync(context, cancellationToken);
+        await pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
         if (!options.AutoAck && _channel != null)
         {
             if (context.ShouldReject)
             {
-                await _channel.BasicRejectAsync(args.DeliveryTag, context.RequeueOnReject, cancellationToken);
+                await _channel.BasicRejectAsync(args.DeliveryTag, context.RequeueOnReject, cancellationToken).ConfigureAwait(false);
             }
             else if (context.ShouldAck)
             {
-                await _channel.BasicAckAsync(args.DeliveryTag, false, cancellationToken);
+                await _channel.BasicAckAsync(args.DeliveryTag, false, cancellationToken).ConfigureAwait(false);
             }
         }
     }
@@ -180,16 +189,16 @@ public class RabbitMqConsumer(
             context.Message,
             context.MessageContext,
             context.Data,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask DisposeAsync()
     {
-        await StopAsync();
+        await StopAsync().ConfigureAwait(false);
 
         if (_channel != null)
         {
-            await _channel.CloseAsync();
+            await _channel.CloseAsync().ConfigureAwait(false);
             _channel.Dispose();
         }
 

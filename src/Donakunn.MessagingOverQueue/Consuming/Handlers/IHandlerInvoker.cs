@@ -54,7 +54,8 @@ internal sealed class HandlerInvoker<TMessage> : IHandlerInvoker
 
         foreach (var handler in handlers)
         {
-            var handlerType = handler.GetType().FullName ?? handler.GetType().Name;
+            var type = handler.GetType();
+            var handlerType = type.FullName ?? type.Name;
 
             if (idempotencyContext != null)
             {

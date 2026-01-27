@@ -26,7 +26,7 @@ public class SerializationMiddleware(IMessageSerializer serializer, ILogger<Seri
         if (context.Message?.CausationId != null)
             context.Headers["causation-id"] = context.Message.CausationId;
 
-        await next(context, cancellationToken);
+        await next(context, cancellationToken).ConfigureAwait(false);
     }
 }
 

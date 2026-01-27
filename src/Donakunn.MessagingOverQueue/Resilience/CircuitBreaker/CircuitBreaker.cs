@@ -10,7 +10,7 @@ public sealed class PollyCircuitBreaker : ICircuitBreaker, IDisposable
 {
     private readonly ResiliencePipeline _pipeline;
     private readonly Lock _stateLock = new();
-    private CircuitState _currentState = CircuitState.Closed;
+    private volatile CircuitState _currentState = CircuitState.Closed;
     private readonly SemaphoreSlim _disposeSemaphore = new(1, 1);
     private bool _disposed;
 
@@ -48,16 +48,7 @@ public sealed class PollyCircuitBreaker : ICircuitBreaker, IDisposable
             .Build();
     }
 
-    public CircuitState State
-    {
-        get
-        {
-            lock (_stateLock)
-            {
-                return _currentState;
-            }
-        }
-    }
+    public CircuitState State => _currentState;
 
     public async Task ExecuteAsync(Func<CancellationToken, Task> action, CancellationToken cancellationToken = default)
     {

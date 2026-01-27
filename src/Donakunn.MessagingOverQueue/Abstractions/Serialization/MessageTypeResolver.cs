@@ -12,6 +12,7 @@ public sealed class MessageTypeResolver : IMessageTypeResolver
     private readonly ConcurrentDictionary<string, Type> _typesByAssemblyQualifiedName = new();
     private readonly HashSet<Type> _registeredTypes = [];
     private readonly Lock _lock = new();
+    private volatile Type[]? _cachedRegisteredTypes;
 
     /// <inheritdoc />
     public void RegisterType<TMessage>()
@@ -24,12 +25,20 @@ public sealed class MessageTypeResolver : IMessageTypeResolver
     {
         ArgumentNullException.ThrowIfNull(messageType);
 
+        // Fast path: use ConcurrentDictionary (thread-safe) for check
+        // AssemblyQualifiedName is unique per type
+        if (messageType.AssemblyQualifiedName != null &&
+            _typesByAssemblyQualifiedName.ContainsKey(messageType.AssemblyQualifiedName))
+            return;
+
         lock (_lock)
         {
+            // Double-check inside lock using HashSet (only safe inside lock)
             if (_registeredTypes.Contains(messageType))
                 return;
 
             _registeredTypes.Add(messageType);
+            _cachedRegisteredTypes = null; // Invalidate cache
 
             // Register by simple name
             _typesByName.TryAdd(messageType.Name, messageType);
@@ -87,9 +96,19 @@ public sealed class MessageTypeResolver : IMessageTypeResolver
     /// <inheritdoc />
     public IReadOnlyCollection<Type> GetRegisteredTypes()
     {
+        var cached = _cachedRegisteredTypes;
+        if (cached != null)
+            return cached;
+
         lock (_lock)
         {
-            return _registeredTypes.ToList().AsReadOnly();
+            cached = _cachedRegisteredTypes;
+            if (cached != null)
+                return cached;
+
+            cached = _registeredTypes.ToArray(); // Single allocation
+            _cachedRegisteredTypes = cached;
+            return cached;
         }
     }
 }

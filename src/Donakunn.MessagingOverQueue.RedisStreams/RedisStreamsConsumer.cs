@@ -107,7 +107,7 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
             "Starting Redis Streams consumer for stream '{StreamKey}', group '{ConsumerGroup}', consumer '{ConsumerId}'",
             _streamKey, _consumerGroup, _consumerId);
 
-        await EnsureConsumerGroupExistsAsync(cancellationToken);
+        await EnsureConsumerGroupExistsAsync(cancellationToken).ConfigureAwait(false);
 
         _isRunning = true;
 
@@ -129,7 +129,7 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
         _logger.LogInformation("Stopping Redis Streams consumer for stream '{StreamKey}'", _streamKey);
 
         _isRunning = false;
-        await _stoppingCts.CancelAsync();
+        await _stoppingCts.CancelAsync().ConfigureAwait(false);
 
         // Wait for processing loop tasks to complete
         var loopTasks = new List<Task>();
@@ -140,7 +140,7 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
         {
             try
             {
-                await Task.WhenAll(loopTasks).WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+                await Task.WhenAll(loopTasks).WaitAsync(TimeSpan.FromSeconds(10), cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -159,7 +159,7 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
             _logger.LogDebug("Waiting for {Count} active processing tasks to complete", activeTasks.Length);
             try
             {
-                await Task.WhenAll(activeTasks).WaitAsync(TimeSpan.FromSeconds(30), cancellationToken);
+                await Task.WhenAll(activeTasks).WaitAsync(TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -196,7 +196,7 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
                 _streamKey,
                 _consumerGroup,
                 StreamPosition.Beginning,
-                createStream: true);
+                createStream: true).ConfigureAwait(false);
 
             _logger.LogDebug(
                 "Created consumer group '{ConsumerGroup}' for stream '{StreamKey}'",
@@ -230,16 +230,16 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
                     _consumerId,
                     position: StreamPosition.NewMessages,
                     count: _options.BatchSize,
-                    noAck: false);
+                    noAck: false).ConfigureAwait(false);
 
                 if (entries.Length == 0)
                 {
-                    await Task.Delay(_options.BlockingTimeout, cancellationToken);
+                    await Task.Delay(_options.BlockingTimeout, cancellationToken).ConfigureAwait(false);
                     continue;
                 }
 
                 // New messages have delivery count of 1
-                await ProcessEntriesBatchAsync(db, entries, handler, cancellationToken, isFromPendingRead: false);
+                await ProcessEntriesBatchAsync(db, entries, handler, cancellationToken, isFromPendingRead: false).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -248,12 +248,12 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
             catch (RedisException ex)
             {
                 _logger.LogError(ex, "Redis error while consuming from stream '{StreamKey}'", _streamKey);
-                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error while consuming from stream '{StreamKey}'", _streamKey);
-                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
             }
         }
     }
@@ -272,16 +272,16 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
         {
             try
             {
-                await Task.Delay(_options.ClaimCheckInterval, cancellationToken);
+                await Task.Delay(_options.ClaimCheckInterval, cancellationToken).ConfigureAwait(false);
 
                 // Clean up old entries from the recently acked cache
                 CleanupRecentlyAckedCache();
 
                 // Re-read our own pending messages for retry
-                await RetryOwnPendingMessagesAsync(db, handler, cancellationToken);
+                await RetryOwnPendingMessagesAsync(db, handler, cancellationToken).ConfigureAwait(false);
 
                 // Claim idle messages from other consumers
-                await ClaimFromOtherConsumersAsync(db, handler, cancellationToken);
+                await ClaimFromOtherConsumersAsync(db, handler, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -289,7 +289,7 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
             }
             catch (RedisServerException ex) when (ex.Message.Contains("NOGROUP"))
             {
-                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -312,7 +312,7 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
             _consumerId,
             position: "0",
             count: _options.BatchSize,
-            noAck: false);
+            noAck: false).ConfigureAwait(false);
 
         if (pendingEntries.Length > 0)
         {
@@ -321,7 +321,7 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
                 pendingEntries.Length, _streamKey);
 
             // Pending messages need delivery count tracking for dead letter handling
-            await ProcessEntriesBatchAsync(db, pendingEntries, handler, cancellationToken, isFromPendingRead: true);
+            await ProcessEntriesBatchAsync(db, pendingEntries, handler, cancellationToken, isFromPendingRead: true).ConfigureAwait(false);
         }
     }
 
@@ -339,7 +339,7 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
             _consumerId,
             (long)_options.ClaimIdleTime.TotalMilliseconds,
             "0-0",
-            _options.BatchSize);
+            _options.BatchSize).ConfigureAwait(false);
 
         if (claimedMessages.ClaimedEntries.Length > 0)
         {
@@ -348,7 +348,7 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
                 claimedMessages.ClaimedEntries.Length, _streamKey);
 
             // Claimed messages are pending messages that need delivery count tracking
-            await ProcessEntriesBatchAsync(db, claimedMessages.ClaimedEntries, handler, cancellationToken, isFromPendingRead: true);
+            await ProcessEntriesBatchAsync(db, claimedMessages.ClaimedEntries, handler, cancellationToken, isFromPendingRead: true).ConfigureAwait(false);
         }
     }
 
@@ -368,7 +368,7 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
         // This avoids O(n) Redis calls per message
         if (isFromPendingRead && entries.Length > 0)
         {
-            await PreFetchDeliveryCountsAsync(db, entries, cancellationToken);
+            await PreFetchDeliveryCountsAsync(db, entries, cancellationToken).ConfigureAwait(false);
         }
 
         foreach (var entry in entries)
@@ -402,7 +402,7 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
             // Wait for semaphore - this provides backpressure when MaxConcurrency is reached.
             // This is the key to continuous flow: we wait here only when at capacity,
             // not for the entire batch to complete.
-            await _concurrencySemaphore.WaitAsync(cancellationToken);
+            await _concurrencySemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
             // Start processing without awaiting - the semaphore controls concurrency.
             // Task exceptions are handled in ProcessEntryWithTrackingAsync.
@@ -434,7 +434,7 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
                 _streamKey,
                 _consumerGroup,
                 count: Math.Max(entries.Length * 2, 100),
-                consumerName: _consumerId);
+                consumerName: _consumerId).ConfigureAwait(false);
 
             // Build lookup dictionary
             foreach (var info in pending)
@@ -463,7 +463,7 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
     {
         try
         {
-            await ProcessEntryAsync(db, entry, handler, cancellationToken, isFromPendingRead);
+            await ProcessEntryAsync(db, entry, entryIdStr, handler, cancellationToken, isFromPendingRead).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -490,19 +490,17 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
     private async Task ProcessEntryAsync(
         IDatabase db,
         StreamEntry entry,
+        string entryIdStr,
         Func<ConsumeContext, CancellationToken, Task> handler,
         CancellationToken cancellationToken,
         bool isFromPendingRead = false)
     {
         var entryId = entry.Id;
-        var entryIdStr = entryId.ToString();
         string? messageId = null;
 
         try
         {
-            var values = entry.Values.ToDictionary(
-                v => v.Name.ToString(),
-                v => v.Value);
+            var values = entry.Values;
 
             messageId = GetEntryValue(values, "message-id") ?? entryIdStr;
             var messageType = GetEntryValue(values, "message-type");
@@ -525,8 +523,8 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
                     "Message {MessageId} exceeded max delivery attempts ({Count}), moving to DLQ",
                     messageId, deliveryCount);
 
-                await MoveToDeadLetterAsync(db, entry, "Max delivery attempts exceeded");
-                await AcknowledgeEntryAsync(db, entryId, messageId);
+                await MoveToDeadLetterAsync(db, entry, "Max delivery attempts exceeded").ConfigureAwait(false);
+                await AcknowledgeEntryAsync(db, entryId, messageId).ConfigureAwait(false);
                 return;
             }
 
@@ -536,10 +534,10 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(_consumerOptions.ProcessingTimeout);
 
-            await handler(context, cts.Token);
+            await handler(context, cts.Token).ConfigureAwait(false);
 
             // Handle acknowledgment based on context flags
-            await HandleAcknowledgmentAsync(db, entry, context, messageId);
+            await HandleAcknowledgmentAsync(db, entry, context, messageId).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -555,7 +553,7 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
 
     private ConsumeContext BuildConsumeContext(
         StreamEntry entry,
-        Dictionary<string, RedisValue> values,
+        NameValueEntry[] values,
         string messageId,
         string? messageType,
         byte[]? body,
@@ -598,21 +596,21 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
     {
         if (context.ShouldAck && !context.ShouldReject)
         {
-            await AcknowledgeEntryAsync(db, entry.Id, messageId);
+            await AcknowledgeEntryAsync(db, entry.Id, messageId).ConfigureAwait(false);
         }
         else if (context.ShouldReject)
         {
             if (!context.RequeueOnReject)
             {
-                await MoveToDeadLetterAsync(db, entry, "Message rejected by handler");
+                await MoveToDeadLetterAsync(db, entry, "Message rejected by handler").ConfigureAwait(false);
             }
-            await AcknowledgeEntryAsync(db, entry.Id, messageId);
+            await AcknowledgeEntryAsync(db, entry.Id, messageId).ConfigureAwait(false);
         }
     }
 
     private async Task AcknowledgeEntryAsync(IDatabase db, RedisValue entryId, string? messageId)
     {
-        await db.StreamAcknowledgeAsync(_streamKey, _consumerGroup, entryId);
+        await db.StreamAcknowledgeAsync(_streamKey, _consumerGroup, entryId).ConfigureAwait(false);
 
         // Track this entry as recently acked to prevent race conditions with the claiming loop.
         // The claiming loop might receive stale pending list data that includes entries
@@ -662,7 +660,7 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
             dlqEntries.Add(new NameValueEntry("dlq-source-stream", _streamKey));
             dlqEntries.Add(new NameValueEntry("dlq-source-id", entry.Id.ToString()));
 
-            await db.StreamAddAsync(dlqStreamKey, [.. dlqEntries]);
+            await db.StreamAddAsync(dlqStreamKey, [.. dlqEntries]).ConfigureAwait(false);
 
             _logger.LogDebug(
                 "Moved message {EntryId} to dead letter stream '{DlqStreamKey}'",
@@ -674,20 +672,22 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
         }
     }
 
-    private static string? GetEntryValue(Dictionary<string, RedisValue> values, string key)
+    private static string? GetEntryValue(NameValueEntry[] values, string key)
     {
-        if (values.TryGetValue(key, out var value) && !value.IsNullOrEmpty)
+        foreach (var entry in values)
         {
-            return value.ToString();
+            if (entry.Name == key && !entry.Value.IsNullOrEmpty)
+                return entry.Value.ToString();
         }
         return null;
     }
 
-    private static byte[]? GetEntryBytes(Dictionary<string, RedisValue> values, string key)
+    private static byte[]? GetEntryBytes(NameValueEntry[] values, string key)
     {
-        if (values.TryGetValue(key, out var value) && !value.IsNullOrEmpty)
+        foreach (var entry in values)
         {
-            return (byte[]?)value;
+            if (entry.Name == key && !entry.Value.IsNullOrEmpty)
+                return (byte[]?)entry.Value;
         }
         return null;
     }
@@ -711,7 +711,7 @@ public sealed class RedisStreamsConsumer : IInternalConsumer
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-        await StopAsync();
+        await StopAsync().ConfigureAwait(false);
         _concurrencySemaphore.Dispose();
         _stoppingCts.Dispose();
     }

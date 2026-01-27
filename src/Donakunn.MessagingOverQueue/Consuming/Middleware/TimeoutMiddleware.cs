@@ -40,7 +40,7 @@ public class TimeoutMiddleware : IOrderedConsumeMiddleware
 
         try
         {
-            await next(context, timeoutCts.Token);
+            await next(context, timeoutCts.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
