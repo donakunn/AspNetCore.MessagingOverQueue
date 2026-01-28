@@ -1,43 +1,38 @@
-# MessagingOverQueue - Multi-Provider Messaging Library for .NET
+# MessagingOverQueue - Redis Streams Messaging Library for .NET
 
 [![GitHub Repository](https://img.shields.io/badge/GitHub-donakunn%2FDonakunn.MessagingOverQueue-blue?logo=github)](https://github.com/donakunn/Donakunn.MessagingOverQueue)
 [![.NET 10](https://img.shields.io/badge/.NET-10-purple)](https://dotnet.microsoft.com/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green)](LICENSE)
 
-A robust, high-performance asynchronous messaging library for .NET 10 with **pluggable messaging providers** (RabbitMQ and Redis Streams), automatic handler-based topology discovery, and SOLID design principles.
+A robust, high-performance asynchronous messaging library for .NET 10 with **Redis Streams**, automatic handler-based topology discovery, and SOLID design principles.
 
 
 ## Introduction
 
-**MessagingOverQueue** is a production-ready messaging library designed to eliminate boilerplate code and streamline message-driven architecture in .NET applications. Built with modern .NET best practices, it provides a developer-friendly abstraction over multiple messaging backends while maintaining full control and flexibility.
-
-### Supported Messaging Providers
-
-| Provider | Package | Use Case |
-|----------|---------|----------|
-| **RabbitMQ** | `Donakunn.MessagingOverQueue` | Traditional message broker with advanced routing, exchanges, and queues |
-| **Redis Streams** | `Donakunn.MessagingOverQueue.RedisStreams` | High-performance streaming with consumer groups, ideal for existing Redis infrastructure |
+**MessagingOverQueue** is a production-ready messaging library designed to eliminate boilerplate code and streamline message-driven architecture in .NET applications. Built with modern .NET best practices, it provides a developer-friendly abstraction over Redis Streams while maintaining full control and flexibility.
 
 ### Why MessagingOverQueue?
 
-Traditional messaging integration requires significant boilerplate: manual exchange and queue declarations, binding configuration, consumer setup, handler registration, and serialization plumbing. MessagingOverQueue eliminates this complexity through **intelligent handler-based auto-discovery** - simply implement `IMessageHandler<T>`, and the library automatically:
+Traditional messaging integration requires significant boilerplate: manual stream and consumer group declarations, consumer setup, handler registration, and serialization plumbing. MessagingOverQueue eliminates this complexity through **intelligent handler-based auto-discovery** - simply implement `IMessageHandler<T>`, and the library automatically:
 
 - **Discovers your handlers** at startup via assembly scanning
-- **Creates messaging topology** (exchanges/streams, queues/consumer groups, bindings) based on conventions or attributes
+- **Creates messaging topology** (streams, consumer groups) based on conventions or attributes
 - **Registers handlers in DI** with scoped lifetime management
-- **Sets up consumers** with optimized concurrency and prefetch settings
+- **Sets up consumers** with optimized concurrency and batch settings
 - **Dispatches messages** using reflection-free, strongly-typed handler invocation
-- **Manages connections** with pooling and automatic recovery
+- **Manages connections** with automatic recovery
 
 ### Architecture Highlights
 
-**Provider Abstraction**: Clean `IMessagingProvider` interface allows seamless switching between RabbitMQ and Redis Streams without changing application code.
+**Provider Abstraction**: The core library is provider-agnostic with clean interfaces:
+- `IInternalConsumer` - Message consumption
+- `IInternalPublisher` - Message publishing
+- `ITopologyDeclarer` - Topology declaration
+- `IHealthCheck` - Health checks
 
 **Reflection-Free Handler Dispatch**: Unlike traditional approaches that use reflection for every message, MessagingOverQueue employs a **handler invoker registry** pattern. Generic `HandlerInvoker<TMessage>` instances are created once at startup and cached in a `ConcurrentDictionary`, providing O(1) lookup and zero reflection overhead during message processing.
 
 **Middleware Pipeline**: Extensible middleware architecture for both publishing and consuming, enabling cross-cutting concerns like logging, serialization, validation, and enrichment.
-
-**Connection Pooling**: Dedicated channel pool with automatic recovery, ensuring high throughput and fault tolerance.
 
 **Topology Management**: Supports convention-based auto-discovery, attribute-based configuration, fluent API, or hybrid approaches for maximum flexibility.
 
@@ -48,36 +43,26 @@ Traditional messaging integration requires significant boilerplate: manual excha
 - **Microservices Communication**: Event-driven architectures, service-to-service messaging, CQRS implementations
 - **Background Processing**: Asynchronous job queues, long-running tasks, scheduled workflows
 - **Event Sourcing**: Publishing domain events with reliable delivery guarantees
-- **Integration Patterns**: Message routing, pub/sub, request/reply, scatter-gather
-- **High-Throughput Systems**: Optimized for concurrent message processing with configurable prefetch and parallelism
+- **Integration Patterns**: Message routing, pub/sub
+- **High-Throughput Systems**: Optimized for concurrent message processing with configurable batch size and parallelism
 
 ---
 
 ## Features
 
-- 🚀 **Handler-Based Auto-Discovery**: Automatically configure topology by scanning for message handlers - exchanges/streams, queues/consumer groups, bindings are all set up automatically
-- 🔌 **Multiple Providers**: Choose between RabbitMQ and Redis Streams based on your infrastructure
-- ⚡ **Reflection-Free Dispatch**: Handler invoker registry eliminates reflection overhead during message processing
-- 🎯 **Clean Abstractions**: Simple interfaces for publishing and consuming messages (`ICommand`, `IEvent`, `IQuery`)
-- ⚙️ **Flexible Configuration**: Multiple configuration sources - Fluent API, appsettings.json, .NET Aspire, or custom sources
-- 🔄 **Provider-Based Outbox Pattern**: Reliable message delivery with pluggable database providers (SQL Server, with extensibility for others)
-- 🛡️ **Resilience**: Built-in retry policies, circuit breakers, and dead letter handling
-- 🔌 **Middleware Pipeline**: Extensible pipeline for both publishing and consuming
-- 💚 **Health Checks**: Built-in ASP.NET Core health check support for both providers
-- 💉 **Dependency Injection**: First-class DI support with Microsoft.Extensions.DependencyInjection
-- 🔗 **Connection Pooling**: Optimized channel/connection management with automatic recovery
-- 📊 **Multiple Queue Types**: Support for Classic, Quorum, Stream, and Lazy queues (RabbitMQ) or Consumer Groups (Redis)
-- 🗄️ **No EF Core Dependency**: Uses high-performance ADO.NET for database operations
+- **Handler-Based Auto-Discovery**: Automatically configure topology by scanning for message handlers - streams and consumer groups are set up automatically
+- **Reflection-Free Dispatch**: Handler invoker registry eliminates reflection overhead during message processing
+- **Clean Abstractions**: Simple interfaces for publishing and consuming messages (`ICommand`, `IEvent`, `IQuery`)
+- **Flexible Configuration**: Multiple configuration sources - Fluent API, appsettings.json, or custom sources
+- **Provider-Based Outbox Pattern**: Reliable message delivery with pluggable database providers (SQL Server, with extensibility for others)
+- **Resilience**: Built-in retry policies, circuit breakers, and dead letter handling
+- **Middleware Pipeline**: Extensible pipeline for both publishing and consuming
+- **Health Checks**: Built-in ASP.NET Core health check support
+- **Dependency Injection**: First-class DI support with Microsoft.Extensions.DependencyInjection
+- **Consumer Groups**: Full support for Redis Streams consumer groups with automatic message claiming
+- **No EF Core Dependency**: Uses high-performance ADO.NET for database operations
 
 ## Installation
-
-### RabbitMQ Provider (Core Package)
-
-```bash
-dotnet add package Donakunn.MessagingOverQueue
-```
-
-### Redis Streams Provider
 
 ```bash
 dotnet add package Donakunn.MessagingOverQueue.RedisStreams
@@ -121,8 +106,8 @@ public class OrderCreatedHandler : IMessageHandler<OrderCreatedEvent>
     }
 
     public async Task HandleAsync(
-        OrderCreatedEvent message, 
-        IMessageContext context, 
+        OrderCreatedEvent message,
+        IMessageContext context,
         CancellationToken cancellationToken)
     {
         _logger.LogInformation("Processing order {OrderId}", message.OrderId);
@@ -131,21 +116,7 @@ public class OrderCreatedHandler : IMessageHandler<OrderCreatedEvent>
 }
 ```
 
-### 3. Configure Services (Handler-Based Auto-Discovery)
-
-#### Using RabbitMQ
-
-```csharp
-using Donakunn.MessagingOverQueue.DependencyInjection;
-using Donakunn.MessagingOverQueue.Topology.DependencyInjection;
-
-services.AddRabbitMqMessaging(builder.Configuration)
-    .AddTopology(topology => topology
-        .WithServiceName("order-service")
-        .ScanAssemblyContaining<OrderCreatedHandler>());
-```
-
-#### Using Redis Streams
+### 3. Configure Services
 
 ```csharp
 using Donakunn.MessagingOverQueue.RedisStreams.DependencyInjection;
@@ -166,13 +137,12 @@ services.AddRedisStreamsMessaging(options => options
 ```
 
 **That's it!** The library automatically:
-- ✅ Scans for `IMessageHandler<T>` implementations in your assembly
-- ✅ Creates exchanges/streams based on message type (events → topic exchange/stream, commands → direct exchange/stream)
-- ✅ Creates queues/consumer groups with service-specific names
-- ✅ Sets up bindings with smart routing keys
-- ✅ Registers handlers in DI
-- ✅ Configures consumers for each handler's queue/stream
-- ✅ Configures dead letter queues (optional)
+- Scans for `IMessageHandler<T>` implementations in your assembly
+- Creates streams based on message type
+- Creates consumer groups with service-specific names
+- Registers handlers in DI
+- Configures consumers for each handler's stream
+- Configures dead letter streams (optional)
 
 ## Handler-Based Topology Discovery
 
@@ -180,7 +150,7 @@ The library's primary auto-discovery mode scans for message handlers rather than
 
 1. **Handlers define consumption** - Where messages are processed
 2. **Automatic consumer setup** - Each handler gets a consumer automatically
-3. **Service isolation** - Different services can handle the same event with their own queues
+3. **Service isolation** - Different services can handle the same event with their own consumer groups
 4. **Less configuration** - No need to manually register handlers or consumers
 
 ### Handler Architecture & Registration
@@ -193,11 +163,12 @@ MessagingOverQueue uses a sophisticated **handler invoker pattern** to eliminate
 2. **Handler Registration**: Each handler is registered in the DI container with scoped lifetime
 3. **Invoker Creation**: A strongly-typed `HandlerInvoker<TMessage>` is created for each message type
 4. **Registry Caching**: Invokers are cached in the `HandlerInvokerRegistry` (ConcurrentDictionary)
-5. **Consumer Setup**: A consumer is configured for each handler's queue with appropriate prefetch and concurrency settings
+5. **Consumer Setup**: A consumer is configured for each handler's stream with appropriate batch and concurrency settings
 
 ```csharp
 // Happens automatically during startup
-services.AddRabbitMqMessaging(builder.Configuration)
+services.AddRedisStreamsMessaging(options => options
+    .UseConnectionString("localhost:6379"))
     .AddTopology(topology => topology
         .WithServiceName("order-service")
         .ScanAssemblyContaining<OrderCreatedHandler>());
@@ -207,36 +178,46 @@ services.AddRabbitMqMessaging(builder.Configuration)
 // 2. Registers: services.AddScoped<IMessageHandler<OrderCreatedEvent>, OrderCreatedHandler>()
 // 3. Creates: var invoker = new HandlerInvoker<OrderCreatedEvent>()
 // 4. Caches: registry.Register(invoker)
-// 5. Sets up consumer for "order-service.order-created" queue
+// 5. Sets up consumer group for "order-service" on the stream
 ```
 
 #### Message Processing Phase (Runtime)
 
-1. **Message Received**: Consumer receives message from RabbitMQ
-2. **O(1) Lookup**: `HandlerInvokerRegistry.GetInvoker(messageType)` retrieves cached invoker
-3. **Scoped Resolution**: Creates DI scope and resolves `IMessageHandler<TMessage>` (your handler)
-4. **Strongly-Typed Invocation**: Calls `handler.HandleAsync((TMessage)message, context, ct)` - **no reflection**
-5. **Cleanup**: Disposes scope when handler completes
+1. **Message Received**: Consumer receives message from Redis stream via XREADGROUP
+2. **Middleware Pipeline**: `ConsumePipeline` executes middleware chain (circuit breaker, retry, logging, deserialization)
+3. **O(1) Lookup**: `HandlerInvokerRegistry.GetInvoker(messageType)` retrieves cached invoker
+4. **Scoped Resolution**: Creates DI scope and resolves `IMessageHandler<TMessage>` (your handler)
+5. **Strongly-Typed Invocation**: Calls `handler.HandleAsync((TMessage)message, context, ct)` - **no reflection**
+6. **Acknowledgment**: Message is acknowledged via XACK
+7. **Cleanup**: Disposes scope when handler completes
 
 ```csharp
-// Inside RabbitMqConsumer - simplified
+// Inside ConsumerHostedService - simplified
 private async Task HandleMessageAsync(ConsumeContext context, CancellationToken ct)
 {
-    // O(1) dictionary lookup - no reflection
-    var invoker = handlerInvokerRegistry.GetInvoker(context.MessageType);
-    
-    // Create scope and invoke strongly-typed handler
-    using var scope = serviceProvider.CreateScope();
-    await invoker.InvokeAsync(scope.ServiceProvider, context.Message, context.MessageContext, ct);
+    using var scope = _serviceProvider.CreateScope();
+
+    // Execute middleware pipeline (logging, deserialization, etc.)
+    var middlewares = scope.ServiceProvider.GetServices<IConsumeMiddleware>();
+    var pipeline = new ConsumePipeline(middlewares, async (ctx, ct) =>
+    {
+        // O(1) dictionary lookup - no reflection
+        var invoker = handlerInvokerRegistry.GetInvoker(ctx.MessageType);
+
+        // Invoke strongly-typed handler
+        await invoker.InvokeAsync(scope.ServiceProvider, ctx.Message, ctx.MessageContext, ct);
+    });
+
+    await pipeline.ExecuteAsync(context, ct);
 }
 ```
 
 **Performance Benefits:**
-- ✅ Reflection used only once per message type at startup
-- ✅ O(1) handler lookup via `ConcurrentDictionary`
-- ✅ Strongly-typed method calls (no `MethodInfo.Invoke`)
-- ✅ Zero allocation per-message (cached invokers)
-- ✅ Thread-safe registry with no locking during reads
+- Reflection used only once per message type at startup
+- O(1) handler lookup via `ConcurrentDictionary`
+- Strongly-typed method calls (no `MethodInfo.Invoke`)
+- Zero allocation per-message (cached invokers)
+- Thread-safe registry with no locking during reads
 
 ### Handler Lifetime & Dependency Injection
 
@@ -251,13 +232,13 @@ public class OrderCreatedHandler : IMessageHandler<OrderCreatedEvent>
 {
     private readonly AppDbContext _context;        // Scoped
     private readonly IEmailService _emailService;  // Can be Scoped, Transient, or Singleton
-    
+
     public OrderCreatedHandler(AppDbContext context, IEmailService emailService)
     {
         _context = context;
         _emailService = emailService;
     }
-    
+
     public async Task HandleAsync(OrderCreatedEvent message, IMessageContext context, CancellationToken ct)
     {
         // Each message gets its own handler instance and DbContext
@@ -281,23 +262,18 @@ public class OrderCreatedHandler : IMessageHandler<OrderCreatedEvent>
 ```
 
 **Generated Topology:**
-- Exchange: `events.order-created` (topic, durable)
-- Queue: `{service-name}.order-created` (durable)
-- Routing Key: `{category}.order.created`
+- Stream: `{prefix}:events:order-created`
+- Consumer Group: `{service-name}`
 - Consumer: Auto-registered with default settings
 
-### Handler with Custom Queue Configuration
+### Handler with Custom Consumer Group
 
-Use `[ConsumerQueue]` attribute to customize the consumer's queue:
+Use `[RedisConsumerGroup]` attribute to customize the consumer group:
 
 ```csharp
-using MessagingOverQueue.Topology.Attributes;
+using Donakunn.MessagingOverQueue.Topology.Attributes;
 
-[ConsumerQueue(
-    Name = "critical-payments",
-    QueueType = QueueType.Quorum,
-    PrefetchCount = 20,
-    MaxConcurrency = 5)]
+[RedisConsumerGroup("custom-processing-group")]
 public class PaymentHandler : IMessageHandler<PaymentProcessedEvent>
 {
     public Task HandleAsync(PaymentProcessedEvent message, IMessageContext context, CancellationToken ct)
@@ -309,176 +285,256 @@ public class PaymentHandler : IMessageHandler<PaymentProcessedEvent>
 
 ### Multiple Services Handling Same Event
 
-Different services can subscribe to the same events with their own queues:
+Different services can subscribe to the same events with their own consumer groups:
 
 ```csharp
 // In Notification Service
-services.AddRabbitMqMessaging(config)
+services.AddRedisStreamsMessaging(options => options
+    .UseConnectionString("localhost:6379"))
     .AddTopology(topology => topology
         .WithServiceName("notification-service")
         .ScanAssemblyContaining<NotifyOnOrderHandler>());
-// Queue: notification-service.order-created
+// Consumer Group: notification-service
 
 // In Analytics Service
-services.AddRabbitMqMessaging(config)
+services.AddRedisStreamsMessaging(options => options
+    .UseConnectionString("localhost:6379"))
     .AddTopology(topology => topology
         .WithServiceName("analytics-service")
         .ScanAssemblyContaining<TrackOrderHandler>());
-// Queue: analytics-service.order-created
+// Consumer Group: analytics-service
 
-// Both queues bound to: events.order-created exchange
+// Both consumer groups read from the same stream
 ```
 
 ### Consumer Concurrency & Performance Tuning
 
-MessagingOverQueue provides fine-grained control over message consumption performance through the `[ConsumerQueue]` attribute or consumer options.
+MessagingOverQueue provides fine-grained control over message consumption performance through configuration options.
 
 #### Understanding Consumer Settings
 
-**PrefetchCount**: Number of messages RabbitMQ delivers to the consumer before waiting for acknowledgment
-- Higher values = Better throughput (less network roundtrips)
-- Lower values = Better load distribution across consumers
-- Default: 10
+**BatchSize**: Number of messages fetched per XREADGROUP call
+- Higher values = Better throughput (fewer Redis roundtrips)
+- Lower values = Lower latency for individual messages
+- Default: 100
 
 **MaxConcurrency**: Maximum number of messages processed concurrently by this consumer
 - Controls parallel handler execution via `SemaphoreSlim`
 - Prevents resource exhaustion (e.g., database connection pool)
-- Default: 1 (sequential processing)
+- Default: 10
 
-**ProcessingTimeout**: Maximum time allowed for handler execution
-- Set in `ConsumerOptions` (not attribute)
-- Automatically cancels long-running handlers
-- Default: Configured in options
+**ClaimIdleTime**: Time after which idle messages are automatically reclaimed via XAUTOCLAIM
+- Handles failed consumers by redistributing unacknowledged messages
+- Default: 5 minutes
 
 ```csharp
-// Low-latency, high-throughput handler
-[ConsumerQueue(PrefetchCount = 50, MaxConcurrency = 10)]
-public class HighThroughputHandler : IMessageHandler<TelemetryEvent>
-{
-    public async Task HandleAsync(TelemetryEvent message, IMessageContext context, CancellationToken ct)
-    {
-        // Process up to 10 messages concurrently
-        // RabbitMQ keeps 50 messages buffered
-    }
-}
+// High-throughput configuration
+services.AddRedisStreamsMessaging(options => options
+    .UseConnectionString("localhost:6379")
+    .ConfigureConsumer(consumer => consumer
+        .WithBatchSize(500)
+        .WithMaxConcurrency(20)));
 
 // Resource-intensive handler with controlled concurrency
-[ConsumerQueue(PrefetchCount = 5, MaxConcurrency = 2)]
-public class DatabaseHeavyHandler : IMessageHandler<ReportGeneratedEvent>
-{
-    private readonly AppDbContext _context;
-    
-    public async Task HandleAsync(ReportGeneratedEvent message, IMessageContext context, CancellationToken ct)
-    {
-        // Only 2 concurrent handlers to avoid overwhelming database
-        // Only 5 messages prefetched to prevent queue hogging
-    }
-}
+services.AddRedisStreamsMessaging(options => options
+    .UseConnectionString("localhost:6379")
+    .ConfigureConsumer(consumer => consumer
+        .WithBatchSize(10)
+        .WithMaxConcurrency(2)));
 
 // Sequential processing for order-sensitive messages
-[ConsumerQueue(PrefetchCount = 1, MaxConcurrency = 1)]
-public class OrderedHandler : IMessageHandler<SequentialEvent>
+services.AddRedisStreamsMessaging(options => options
+    .UseConnectionString("localhost:6379")
+    .ConfigureConsumer(consumer => consumer
+        .WithBatchSize(1)
+        .WithMaxConcurrency(1)));
+```
+
+## Idempotency
+
+**Handlers MUST be idempotent.** The library provides at-least-once delivery semantics, meaning the same message may be delivered multiple times in edge cases:
+
+- Network failures during acknowledgment
+- Process restarts/crashes during message handling
+- Consumer disconnects before XACK is sent
+- XAUTOCLAIM redistributes unacknowledged messages
+
+### Built-in Idempotency Support
+
+When the outbox pattern is enabled, the library provides automatic idempotency tracking via the inbox pattern:
+
+```csharp
+services.AddRedisStreamsMessaging(options => options
+    .UseConnectionString("localhost:6379"))
+    .AddOutboxPattern(options => { })
+    .UseSqlServer(connectionString);
+```
+
+Each message + handler combination is tracked in the `MessageStore` table. If a duplicate message arrives for the same handler, it's automatically skipped.
+
+### Manual Idempotency
+
+For handlers that don't use the outbox pattern, implement idempotency in your handler logic:
+
+```csharp
+public class OrderCreatedHandler : IMessageHandler<OrderCreatedEvent>
 {
-    public async Task HandleAsync(SequentialEvent message, IMessageContext context, CancellationToken ct)
+    private readonly AppDbContext _context;
+
+    public async Task HandleAsync(OrderCreatedEvent message, IMessageContext context, CancellationToken ct)
     {
-        // Strict sequential processing - one message at a time
+        // Check if already processed
+        if (await _context.ProcessedOrders.AnyAsync(p => p.OrderId == message.OrderId, ct))
+            return;
+
+        // Process the order
+        await _context.Orders.AddAsync(new Order { Id = message.OrderId }, ct);
+        await _context.ProcessedOrders.AddAsync(new ProcessedOrder { OrderId = message.OrderId }, ct);
+        await _context.SaveChangesAsync(ct);
     }
 }
-```
-
-## Configuration Options
-
-### Option A: Handler-Based Auto-Discovery (Recommended)
-
-```csharp
-services.AddRabbitMqMessaging(builder.Configuration)
-    .AddTopology(topology => topology
-        .WithServiceName("my-service")
-        .WithDeadLetterEnabled(true)
-        .ScanAssemblyContaining<MyHandler>());
-```
-
-### Option B: Message Attribute-Based Configuration
-
-Add attributes to message classes for fine-grained control:
-
-```csharp
-using MessagingOverQueue.Topology.Attributes;
-
-[Exchange("payments-exchange", Type = ExchangeType.Topic)]
-[Queue("payment-processed-queue", QueueType = QueueType.Quorum)]
-[RoutingKey("payments.processed")]
-[DeadLetter("payments-dlx", QueueName = "payments-failed")]
-public class PaymentProcessedEvent : Event
-{
-    public Guid PaymentId { get; init; }
-}
-```
-
-### Option C: Fluent API Configuration
-
-```csharp
-services.AddRabbitMqMessaging(options => options
-    .UseHost("localhost")
-    .UsePort(5672)
-    .WithCredentials("guest", "guest"))
-    .AddTopology(topology => topology
-        .AddTopology<PaymentProcessedEvent>(msg => msg
-            .WithExchange(ex => ex
-                .WithName("payments")
-                .AsTopic()
-                .Durable())
-            .WithQueue(q => q
-                .WithName("payment-events")
-                .Durable()
-                .AsQuorumQueue())
-            .WithRoutingKey("payments.processed")
-            .WithDeadLetter()));
-```
-
-### Option D: Configuration from appsettings.json
-
-```csharp
-services.AddRabbitMqMessaging(builder.Configuration);
-```
-
-```json
-{
-  "RabbitMq": {
-    "HostName": "localhost",
-    "Port": 5672,
-    "UserName": "guest",
-    "Password": "guest"
-  }
-}
-```
-
-### Option E: .NET Aspire Integration
-
-```csharp
-services.AddRabbitMqMessagingFromAspire(builder.Configuration);
-```
-
-### Option F: Combined Configuration Sources
-
-```csharp
-// appsettings.json provides base config, fluent API overrides
-services.AddRabbitMqMessaging(
-    builder.Configuration,
-    options => options.WithConnectionName("MyApp"));
 ```
 
 ---
 
-## Redis Streams Provider
+## Middleware Pipeline
 
-The Redis Streams provider offers high-performance message streaming using Redis 6.2+ features including consumer groups, automatic message claiming, and dead letter handling.
+The library uses an extensible middleware pipeline for both publishing and consuming messages.
 
-### Installation
+### Consume Pipeline Order
 
-```bash
-dotnet add package Donakunn.MessagingOverQueue.RedisStreams
+When a message is received, it flows through middlewares in this order:
+
 ```
+Message Received (XREADGROUP)
+    ↓
+CircuitBreaker Middleware (if configured)
+    ↓
+Retry Middleware (if configured)
+    ↓
+Timeout Middleware (if configured)
+    ↓
+Logging Middleware
+    ↓
+Idempotency Middleware (if outbox enabled)
+    ↓
+Deserialization Middleware
+    ↓
+Handler Invocation
+    ↓
+Acknowledgment (XACK)
+```
+
+### Built-in Consume Middlewares
+
+| Middleware | Order | Purpose |
+|------------|-------|---------|
+| `CircuitBreakerMiddleware` | 100 | Prevents cascade failures |
+| `RetryMiddleware` | 200 | Automatic retry with backoff |
+| `TimeoutMiddleware` | 300 | Handler execution timeout |
+| `ConsumeLoggingMiddleware` | 400 | Request/response logging |
+| `IdempotencyMiddleware` | 500 | Duplicate message detection |
+| `DeserializationMiddleware` | 600 | JSON → message object |
+
+### Custom Middleware
+
+Create custom middleware by implementing `IConsumeMiddleware`:
+
+```csharp
+public class MetricsMiddleware : IOrderedConsumeMiddleware
+{
+    public int Order => 350; // After timeout, before logging
+
+    public async Task InvokeAsync(
+        ConsumeContext context,
+        Func<ConsumeContext, CancellationToken, Task> next,
+        CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            await next(context, cancellationToken);
+            RecordSuccess(context.MessageType, stopwatch.Elapsed);
+        }
+        catch (Exception ex)
+        {
+            RecordFailure(context.MessageType, stopwatch.Elapsed, ex);
+            throw;
+        }
+    }
+}
+```
+
+Register in DI:
+
+```csharp
+services.AddSingleton<IConsumeMiddleware, MetricsMiddleware>();
+```
+
+---
+
+## Configuration Options
+
+### Option A: Fluent API (Recommended)
+
+```csharp
+services.AddRedisStreamsMessaging(options => options
+    .UseConnectionString("localhost:6379")
+    .WithStreamPrefix("myapp")
+    .ConfigureConsumer(consumer => consumer
+        .WithBatchSize(100)
+        .WithMaxConcurrency(10))
+    .WithTimeBasedRetention(TimeSpan.FromDays(7))
+    .WithDeadLetterPerConsumerGroup()
+    .WithMaxDeliveryAttempts(5))
+    .AddTopology(topology => topology
+        .WithServiceName("my-service")
+        .ScanAssemblyContaining<MyHandler>());
+```
+
+### Option B: Configuration from appsettings.json
+
+```csharp
+services.AddRedisStreamsMessaging(builder.Configuration)
+    .AddTopology(topology => topology
+        .WithServiceName("my-service")
+        .ScanAssemblyContaining<MyHandler>());
+```
+
+```json
+{
+  "RedisStreams": {
+    "ConnectionString": "localhost:6379",
+    "Password": "secret",
+    "Database": 0,
+    "StreamPrefix": "myapp",
+    "ConnectionTimeout": "00:00:30",
+    "ConsumerOptions": {
+      "BatchSize": 100,
+      "MaxConcurrency": 10,
+      "ClaimIdleTime": "00:05:00",
+      "BlockingTimeout": "00:00:05"
+    },
+    "RetentionStrategy": "TimeBased",
+    "RetentionPeriod": "7.00:00:00",
+    "DeadLetterStrategy": "PerConsumerGroup",
+    "MaxDeliveryAttempts": 5
+  }
+}
+```
+
+### Option C: Combined Configuration Sources
+
+```csharp
+// appsettings.json provides base config, fluent API overrides
+services.AddRedisStreamsMessaging(
+    builder.Configuration,
+    options => options.WithStreamPrefix("override-prefix"));
+```
+
+---
+
+## Redis Streams Configuration
 
 ### Basic Configuration
 
@@ -577,7 +633,7 @@ public class OrderCreatedHandler : IMessageHandler<OrderCreatedEvent>
 
 ### Dead Letter Handling
 
-Redis Streams don't have native dead letter exchanges. This library implements DLQ by:
+Redis Streams don't have native dead letter support. This library implements DLQ by:
 
 1. Tracking delivery count via `XPENDING`
 2. Moving messages to a DLQ stream after `MaxDeliveryAttempts`
@@ -619,7 +675,7 @@ public class OrderController : ControllerBase
             CustomerId = request.CustomerId,
             Items = request.Items
         });
-        
+
         return Accepted();
     }
 
@@ -631,7 +687,7 @@ public class OrderController : ControllerBase
             OrderId = id,
             ShippedAt = DateTime.UtcNow
         });
-        
+
         return Ok();
     }
 }
@@ -639,39 +695,18 @@ public class OrderController : ControllerBase
 
 ## Attributes Reference
 
-### Message Attributes
-
-| Attribute | Target | Description |
-|-----------|--------|-------------|
-| `[Exchange]` | Message | Configure exchange name, type, durability |
-| `[Queue]` | Message | Configure queue name, type, TTL, max length |
-| `[RoutingKey]` | Message | Set the routing key pattern |
-| `[DeadLetter]` | Message | Configure dead letter exchange and queue |
-| `[Message]` | Message | Control auto-discovery, versioning |
-| `[Binding]` | Message | Add multiple routing key bindings |
-| `[RetryPolicy]` | Message | Configure retry behavior |
-
 ### Handler Attributes
 
 | Attribute | Target | Description |
 |-----------|--------|-------------|
-| `[ConsumerQueue]` | Handler | Configure consumer queue, prefetch, concurrency |
+| `[RedisConsumerGroup]` | Handler | Override consumer group name |
+| `[Message]` | Message | Control auto-discovery, versioning |
+| `[RetryPolicy]` | Message | Configure retry behavior |
 
-### ConsumerQueueAttribute Properties
+### RedisConsumerGroupAttribute
 
 ```csharp
-[ConsumerQueue(
-    Name = "custom-queue-name",      // Override queue name
-    QueueType = QueueType.Quorum,    // Classic, Quorum, Stream, Lazy
-    Durable = true,                  // Queue durability
-    Exclusive = false,               // Exclusive to this connection
-    AutoDelete = false,              // Delete when unused
-    MessageTtlMs = 86400000,         // Message TTL in milliseconds
-    MaxLength = 10000,               // Max messages in queue
-    MaxLengthBytes = 1073741824,     // Max queue size in bytes
-    PrefetchCount = 10,              // Consumer prefetch count
-    MaxConcurrency = 5               // Max concurrent handlers
-)]
+[RedisConsumerGroup("custom-group-name")]
 public class MyHandler : IMessageHandler<MyEvent> { }
 ```
 
@@ -681,11 +716,9 @@ public class MyHandler : IMessageHandler<MyEvent> { }
 
 | Element | Event | Command |
 |---------|-------|---------|
-| Exchange | `events.{message-name}` | `commands.{message-name}` |
-| Queue | `{service-name}.{message-name}` | `{message-name}` |
-| Routing Key | `{category}.{message-name}` | `{message-name}` |
-| Dead Letter Exchange | `dlx.{queue-name}` | `dlx.{queue-name}` |
-| Dead Letter Queue | `{queue-name}.dlq` | `{queue-name}.dlq` |
+| Stream | `{prefix}:events:{message-name}` | `{prefix}:commands:{message-name}` |
+| Consumer Group | `{service-name}` | `{service-name}` |
+| Dead Letter Stream | `{stream-name}:dlq` | `{stream-name}:dlq` |
 
 ### Customize Naming
 
@@ -695,11 +728,8 @@ public class MyHandler : IMessageHandler<MyEvent> { }
     .ConfigureNaming(naming =>
     {
         naming.UseLowerCase = true;
-        naming.EventExchangePrefix = "events.";
-        naming.CommandExchangePrefix = "commands.";
-        naming.DeadLetterExchangePrefix = "dlx.";
-        naming.DeadLetterQueueSuffix = "dlq";
-        naming.QueueSeparator = ".";
+        naming.StreamPrefix = "myapp";
+        naming.DeadLetterSuffix = "dlq";
     }));
 ```
 
@@ -711,18 +741,19 @@ Ensure messages are published reliably within database transactions. The outbox 
 
 | Provider | Package | Status |
 |----------|---------|--------|
-| SQL Server | Built-in | ✅ Available |
-| PostgreSQL | Coming soon | 🔜 Planned |
-| MySQL | Coming soon | 🔜 Planned |
-| In-Memory | Built-in (testing) | ✅ Available |
+| SQL Server | Built-in | Available |
+| PostgreSQL | Coming soon | Planned |
+| MySQL | Coming soon | Planned |
+| In-Memory | Built-in (testing) | Available |
 
 ### 1. Configure the Outbox with SQL Server
 
 ```csharp
-using MessagingOverQueue.DependencyInjection;
+using Donakunn.MessagingOverQueue.RedisStreams.DependencyInjection;
 using MessagingOverQueue.Persistence.DependencyInjection;
 
-services.AddRabbitMqMessaging(builder.Configuration)
+services.AddRedisStreamsMessaging(options => options
+    .UseConnectionString("localhost:6379"))
     .AddTopology(topology => topology
         .WithServiceName("order-service")
         .ScanAssemblyContaining<OrderHandler>())
@@ -794,8 +825,7 @@ CREATE TABLE [MessageStore] (
     [Direction] INT NOT NULL,           -- 0 = Outbox, 1 = Inbox
     [MessageType] NVARCHAR(500) NOT NULL,
     [Payload] VARBINARY(MAX) NULL,
-    [ExchangeName] NVARCHAR(256) NULL,
-    [RoutingKey] NVARCHAR(256) NULL,
+    [StreamName] NVARCHAR(256) NULL,
     [Headers] NVARCHAR(MAX) NULL,
     [HandlerType] NVARCHAR(500) NULL,   -- For inbox idempotency
     [CreatedAt] DATETIME2 NOT NULL,
@@ -806,7 +836,7 @@ CREATE TABLE [MessageStore] (
     [LockToken] NVARCHAR(100) NULL,
     [LockExpiresAt] DATETIME2 NULL,
     [CorrelationId] NVARCHAR(100) NULL,
-    
+
     PRIMARY KEY CLUSTERED ([Id], [Direction], [HandlerType])
 );
 ```
@@ -832,7 +862,8 @@ public class PostgreSqlMessageStoreProvider : IMessageStoreProvider
 Register your custom provider:
 
 ```csharp
-services.AddRabbitMqMessaging(config)
+services.AddRedisStreamsMessaging(options => options
+    .UseConnectionString("localhost:6379"))
     .AddOutboxPattern()
     .Services.AddSingleton<IMessageStoreProvider, PostgreSqlMessageStoreProvider>();
 ```
@@ -840,7 +871,9 @@ services.AddRabbitMqMessaging(config)
 ## Resilience Configuration
 
 ```csharp
-services.AddRabbitMqMessaging(config)
+services.AddRedisStreamsMessaging(options => options
+    .UseConnectionString("localhost:6379")
+    .WithMaxDeliveryAttempts(5))
     .AddTopology(topology => topology
         .WithServiceName("my-service")
         .ScanAssemblyContaining<MyHandler>())
@@ -858,26 +891,11 @@ services.AddRabbitMqMessaging(config)
     });
 ```
 
-## Queue Types
-
-```csharp
-// High Availability - Quorum Queue
-[ConsumerQueue(QueueType = QueueType.Quorum)]
-public class CriticalHandler : IMessageHandler<CriticalEvent> { }
-
-// High Throughput - Stream Queue (no DLX support)
-[ConsumerQueue(QueueType = QueueType.Stream)]
-public class TelemetryHandler : IMessageHandler<TelemetryEvent> { }
-
-// Large Queues - Lazy Queue
-[ConsumerQueue(QueueType = QueueType.Lazy, MaxLength = 1000000)]
-public class BulkHandler : IMessageHandler<BulkEvent> { }
-```
-
 ## Health Checks
 
 ```csharp
-services.AddRabbitMqMessaging(config)
+services.AddRedisStreamsMessaging(options => options
+    .UseConnectionString("localhost:6379"))
     .AddTopology(...)
     .AddHealthChecks();
 
@@ -893,10 +911,11 @@ public async Task HandleAsync(MyEvent message, IMessageContext context, Cancella
 {
     Console.WriteLine($"Message ID: {context.MessageId}");
     Console.WriteLine($"Correlation ID: {context.CorrelationId}");
-    Console.WriteLine($"Queue: {context.QueueName}");
+    Console.WriteLine($"Stream: {context.StreamName}");
+    Console.WriteLine($"Consumer Group: {context.ConsumerGroup}");
     Console.WriteLine($"Delivery Count: {context.DeliveryCount}");
     Console.WriteLine($"Received At: {context.ReceivedAt}");
-    
+
     var customHeader = context.Headers["x-custom-header"];
 }
 ```
@@ -908,7 +927,8 @@ public async Task HandleAsync(MyEvent message, IMessageContext context, Cancella
 Scans assemblies and automatically registers all handlers:
 
 ```csharp
-services.AddRabbitMqMessaging(builder.Configuration)
+services.AddRedisStreamsMessaging(options => options
+    .UseConnectionString("localhost:6379"))
     .AddTopology(topology => topology
         .WithServiceName("my-service")
         .ScanAssemblyContaining<OrderCreatedHandler>());
@@ -916,7 +936,7 @@ services.AddRabbitMqMessaging(builder.Configuration)
 // Automatically registers:
 // - IMessageHandler<OrderCreatedEvent> → OrderCreatedHandler (scoped)
 // - HandlerInvoker<OrderCreatedEvent> in registry
-// - Consumer for queue "my-service.order-created"
+// - Consumer group "my-service" on the stream
 // - Message type for serialization
 ```
 
@@ -925,14 +945,10 @@ services.AddRabbitMqMessaging(builder.Configuration)
 For fine-grained control, register handlers explicitly:
 
 ```csharp
-services.AddRabbitMqMessaging(builder.Configuration)
+services.AddRedisStreamsMessaging(options => options
+    .UseConnectionString("localhost:6379"))
     .AddHandler<OrderCreatedHandler, OrderCreatedEvent>()
-    .AddHandler<PaymentProcessedHandler, PaymentProcessedEvent>()
-    .AddConsumer("order-events", opt => 
-    {
-        opt.PrefetchCount = 20;
-        opt.MaxConcurrency = 5;
-    });
+    .AddHandler<PaymentProcessedHandler, PaymentProcessedEvent>();
 ```
 
 ### Multiple Handlers for Same Message
@@ -940,7 +956,8 @@ services.AddRabbitMqMessaging(builder.Configuration)
 Register multiple handlers for a single message type:
 
 ```csharp
-services.AddRabbitMqMessaging(builder.Configuration)
+services.AddRedisStreamsMessaging(options => options
+    .UseConnectionString("localhost:6379"))
     .AddHandler<EmailNotificationHandler, OrderCreatedEvent>()
     .AddHandler<AuditLoggingHandler, OrderCreatedEvent>()
     .AddHandler<AnalyticsTrackingHandler, OrderCreatedEvent>();
@@ -948,27 +965,28 @@ services.AddRabbitMqMessaging(builder.Configuration)
 // When OrderCreatedEvent is received:
 // 1. HandlerInvoker<OrderCreatedEvent> resolves ALL handlers from DI
 // 2. Executes them sequentially in registration order
-// 3. All handlers must succeed for message acknowledgment
+// 3. All handlers must succeed for message acknowledgment (XACK)
 ```
 
 ## Complete Registration Example
 
 ```csharp
-services.AddRabbitMqMessaging(builder.Configuration, options => options
-    .WithConnectionName("MyApp")
-    .WithChannelPoolSize(20))
-    
+services.AddRedisStreamsMessaging(options => options
+    .UseConnectionString("localhost:6379")
+    .WithStreamPrefix("myapp")
+    .ConfigureConsumer(consumer => consumer
+        .WithBatchSize(100)
+        .WithMaxConcurrency(10)
+        .WithClaimIdleTime(TimeSpan.FromMinutes(5)))
+    .WithTimeBasedRetention(TimeSpan.FromDays(7))
+    .WithDeadLetterPerConsumerGroup()
+    .WithMaxDeliveryAttempts(5))
+
     // Handler-based auto-discovery - this does everything!
     .AddTopology(topology => topology
         .WithServiceName("my-service")
-        .WithDeadLetterEnabled(true)
-        .ScanAssemblyContaining<OrderCreatedHandler>()
-        .ConfigureProvider(provider =>
-        {
-            provider.DefaultDurable = true;
-            provider.EnableDeadLetterByDefault = true;
-        }))
-    
+        .ScanAssemblyContaining<OrderCreatedHandler>())
+
     // Add outbox pattern with SQL Server
     .AddOutboxPattern(outbox =>
     {
@@ -981,9 +999,9 @@ services.AddRabbitMqMessaging(builder.Configuration, options => options
         store.TableName = "MessageStore";
         store.Schema = "messaging";
     })
-    
+
     // Configure resilience
-    .ConfigureRetry(retry => 
+    .ConfigureRetry(retry =>
     {
         retry.MaxRetryAttempts = 5;
         retry.UseExponentialBackoff = true;
@@ -993,7 +1011,7 @@ services.AddRabbitMqMessaging(builder.Configuration, options => options
         cb.FailureRateThreshold = 0.5;
         cb.DurationOfBreak = TimeSpan.FromSeconds(30);
     })
-    
+
     // Add health checks
     .AddHealthChecks();
 ```
@@ -1003,108 +1021,77 @@ services.AddRabbitMqMessaging(builder.Configuration, options => options
 ```
 MessagingOverQueue/
 ├── src/
-│   ├── Abstractions/
-│   │   ├── Consuming/          # IMessageHandler, IMessageContext, IMessageConsumer
-│   │   ├── Messages/           # IMessage, IEvent, ICommand, IQuery, MessageBase
-│   │   ├── Publishing/         # IMessagePublisher, IEventPublisher, ICommandSender
-│   │   └── Serialization/      # IMessageSerializer, IMessageTypeResolver
-│   ├── Configuration/
-│   │   ├── Builders/           # RabbitMqOptionsBuilder, fluent builders
-│   │   ├── Options/            # RabbitMqOptions, ConsumerOptions, RetryOptions
-│   │   └── Sources/            # Configuration sources (Aspire, AppSettings, Fluent)
-│   ├── Connection/             # IRabbitMqConnectionPool, channel management
-│   ├── Consuming/
-│   │   ├── Handlers/           # HandlerInvokerRegistry, HandlerInvokerFactory
-│   │   └── Middleware/         # ConsumePipeline, DeserializationMiddleware
-│   ├── DependencyInjection/    # ServiceCollectionExtensions, IMessagingBuilder
-│   ├── HealthChecks/           # RabbitMqHealthCheck
-│   ├── Hosting/                # ConsumerHostedService, RabbitMqHostedService
-│   ├── Persistence/
-│   │   ├── DependencyInjection/ # MessageStoreProviderExtensions, IOutboxBuilder
-│   │   ├── Entities/           # MessageStoreEntry (unified outbox/inbox)
-│   │   ├── Providers/          # IMessageStoreProvider, MessageStoreOptions
-│   │   │   └── SqlServer/      # SqlServerMessageStoreProvider
-│   │   └── Repositories/       # IOutboxRepository, IInboxRepository
-│   ├── Publishing/
-│   │   └── Middleware/         # PublishPipeline, SerializationMiddleware
-│   ├── Resilience/
-│   │   └── CircuitBreaker/     # ICircuitBreaker, PollyCircuitBreaker
-│   └── Topology/
-│       ├── Abstractions/       # ITopologyScanner, ITopologyRegistry, ITopologyProvider
-│       ├── Attributes/         # ConsumerQueueAttribute, ExchangeAttribute, etc.
-│       ├── Builders/           # TopologyBuilder, MessageTopologyBuilder
-│       ├── Conventions/        # DefaultTopologyNamingConvention
-│       └── DependencyInjection/# TopologyServiceCollectionExtensions
-└── Examples/                   # Configuration and topology examples
+│   ├── Donakunn.MessagingOverQueue/              # Core library (abstractions)
+│   │   ├── Abstractions/
+│   │   │   ├── Consuming/      # IMessageHandler, IMessageContext
+│   │   │   ├── Messages/       # IMessage, IEvent, ICommand, IQuery, MessageBase
+│   │   │   ├── Publishing/     # IMessagePublisher, IEventPublisher, ICommandSender
+│   │   │   └── Serialization/  # IMessageSerializer, IMessageTypeResolver
+│   │   ├── Configuration/
+│   │   │   ├── Builders/       # MessagingOptionsBuilder, fluent builders
+│   │   │   ├── Options/        # MessagingOptions, ConsumerOptions, RetryOptions
+│   │   │   └── Sources/        # Configuration sources (AppSettings, Fluent)
+│   │   ├── Consuming/
+│   │   │   ├── Handlers/       # HandlerInvokerRegistry, HandlerInvokerFactory
+│   │   │   └── Middleware/     # ConsumePipeline, DeserializationMiddleware
+│   │   ├── DependencyInjection/# ServiceCollectionExtensions, IMessagingBuilder
+│   │   ├── HealthChecks/       # ConnectionHealthCheck
+│   │   ├── Hosting/            # ConsumerHostedService
+│   │   ├── Persistence/
+│   │   │   ├── DependencyInjection/ # MessageStoreProviderExtensions, IOutboxBuilder
+│   │   │   ├── Entities/       # MessageStoreEntry (unified outbox/inbox)
+│   │   │   ├── Providers/      # IMessageStoreProvider, MessageStoreOptions
+│   │   │   │   └── SqlServer/  # SqlServerMessageStoreProvider
+│   │   │   └── Repositories/   # IOutboxRepository, IInboxRepository
+│   │   ├── Providers/          # IMessagingProvider, IInternalConsumer, IInternalPublisher
+│   │   ├── Publishing/
+│   │   │   └── Middleware/     # PublishPipeline, SerializationMiddleware
+│   │   ├── Resilience/
+│   │   │   └── CircuitBreaker/ # ICircuitBreaker, PollyCircuitBreaker
+│   │   └── Topology/
+│   │       ├── Abstractions/   # ITopologyScanner, ITopologyRegistry, ITopologyDeclarer
+│   │       ├── Attributes/     # RedisConsumerGroupAttribute, etc.
+│   │       ├── Builders/       # TopologyBuilder, MessageTopologyBuilder
+│   │       ├── Conventions/    # DefaultTopologyNamingConvention
+│   │       └── DependencyInjection/ # TopologyServiceCollectionExtensions
+│   │
+│   └── Donakunn.MessagingOverQueue.RedisStreams/ # Redis Streams provider
+│       ├── Connection/         # RedisConnectionManager
+│       ├── Consumer/           # RedisStreamsConsumer : IInternalConsumer
+│       ├── Publisher/          # RedisStreamsPublisher : IInternalPublisher
+│       ├── Topology/           # RedisStreamsTopologyDeclarer : ITopologyDeclarer
+│       └── HealthChecks/       # RedisStreamsHealthCheck
+│
+└── tests/                      # Unit and integration tests
 ```
 
 ## Key Benefits
 
-✅ **Zero-Config Handlers**: Handlers are automatically registered and connected to consumers  
-✅ **Reflection-Free Dispatch**: Handler invoker pattern eliminates per-message reflection overhead  
-✅ **O(1) Handler Lookup**: ConcurrentDictionary-based registry for instant handler resolution  
-✅ **Service Isolation**: Each service gets its own queue for shared events  
-✅ **Type Safety**: Strongly-typed messages and handlers with compile-time verification  
-✅ **Scoped DI**: Automatic scope management for each message handler  
-✅ **Multiple Handlers**: Native support for multiple handlers per message type  
-✅ **Concurrency Control**: Fine-grained control via SemaphoreSlim and prefetch settings  
-✅ **Provider-Based Persistence**: Pluggable database providers without EF Core dependency  
-✅ **High-Performance ADO.NET**: Direct database access with optimized queries  
-✅ **Unified Message Store**: Single table for both outbox and inbox (idempotency)  
-✅ **Atomic Locking**: SQL Server's OUTPUT clause for race-condition-free message acquisition  
-✅ **Auto Schema Creation**: Database tables created automatically on startup  
-✅ **Resilience**: Built-in retry, circuit breaker, and dead letter handling  
-✅ **Flexibility**: Mix auto-discovery with manual configuration  
-✅ **Production Ready**: Health checks, monitoring, and enterprise patterns  
-✅ **High Performance**: Connection pooling, optimized serialization, minimal allocations  
-
-## Migration from EF Core-based Outbox
-
-If you're migrating from the previous EF Core-based outbox pattern:
-
-### Before (EF Core)
-```csharp
-// Old approach - required DbContext
-services.AddRabbitMqMessaging(config)
-    .AddOutboxPattern<AppDbContext>(options => { });
-```
-
-### After (Provider-Based)
-```csharp
-// New approach - provider-based, no EF Core required
-services.AddRabbitMqMessaging(config)
-    .AddOutboxPattern(options => { })
-    .UseSqlServer(connectionString);
-```
-
-### Data Migration
-
-The new unified `MessageStore` table replaces the separate `OutboxMessages` and `InboxMessages` tables. A migration script is recommended for production environments:
-
-```sql
--- Example migration script (adjust as needed)
-INSERT INTO MessageStore (Id, Direction, MessageType, Payload, ExchangeName, RoutingKey, 
-    Headers, CreatedAt, ProcessedAt, Status, RetryCount, LastError, LockToken, LockExpiresAt, CorrelationId)
-SELECT Id, 0 as Direction, MessageType, Payload, ExchangeName, RoutingKey,
-    Headers, CreatedAt, ProcessedAt, Status, RetryCount, LastError, LockToken, LockExpiresAt, CorrelationId
-FROM OutboxMessages;
-
-INSERT INTO MessageStore (Id, Direction, MessageType, HandlerType, CreatedAt, ProcessedAt, Status, CorrelationId)
-SELECT Id, 1 as Direction, MessageType, HandlerType, ProcessedAt, ProcessedAt, 2, CorrelationId
-FROM InboxMessages;
-```
-
-## Documentation
-
-- **[README.md](README.md)** - This file - Quick start and usage guide
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Detailed architecture and design patterns
-- **[Examples/](Examples/)** - Sample code and configuration examples
+- **Zero-Config Handlers**: Handlers are automatically registered and connected to consumers
+- **Reflection-Free Dispatch**: Handler invoker pattern eliminates per-message reflection overhead
+- **O(1) Handler Lookup**: ConcurrentDictionary-based registry for instant handler resolution
+- **Service Isolation**: Each service gets its own consumer group for shared events
+- **Type Safety**: Strongly-typed messages and handlers with compile-time verification
+- **Scoped DI**: Automatic scope management for each message handler
+- **Multiple Handlers**: Native support for multiple handlers per message type
+- **Concurrency Control**: Fine-grained control via batch size and max concurrency settings
+- **Provider-Based Persistence**: Pluggable database providers without EF Core dependency
+- **High-Performance ADO.NET**: Direct database access with optimized queries
+- **Unified Message Store**: Single table for both outbox and inbox (idempotency)
+- **Atomic Locking**: SQL Server's OUTPUT clause for race-condition-free message acquisition
+- **Auto Schema Creation**: Database tables created automatically on startup
+- **Resilience**: Built-in retry, circuit breaker, and dead letter handling
+- **Automatic Message Claiming**: XAUTOCLAIM handles failed consumers automatically
+- **Stream Retention**: Configure time-based or count-based message retention
+- **Flexibility**: Mix auto-discovery with manual configuration
+- **Production Ready**: Health checks, monitoring, and enterprise patterns
+- **High Performance**: Redis-optimized connections, serialization, minimal allocations
 
 ## Requirements
 
 - .NET 10 or later
-- RabbitMQ 3.8+ (for quorum queues and streams)
-- SQL Server 2016+ (for SQL Server provider)
+- Redis 6.2+ (for XAUTOCLAIM support)
+- SQL Server 2016+ (for SQL Server outbox provider)
 
 ## License
 
